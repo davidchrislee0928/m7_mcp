@@ -21,6 +21,9 @@ if not FMP_API_KEY:
 print(f"🟢 [M7-INIT] 成功加载 FMP 财务网关密钥: [...{FMP_API_KEY[-6:] if len(FMP_API_KEY)>6 else 'VALID'}]")
 
 # 📌 2. 恢复【铁血多 Key 轮流化缘池】
+# =====================================================================
+# 📌 2. 铁血多 Key 轮流化缘池（高精清洗并网版）
+# =====================================================================
 API_KEY_POOL = [
     os.environ.get("GOOGLE_API_KEY1"),
     os.environ.get("GOOGLE_API_KEY2"),
@@ -28,14 +31,21 @@ API_KEY_POOL = [
     os.environ.get("GOOGLE_API_KEY4"),
     os.environ.get("GOOGLE_API_KEY"), 
 ]
-active_google_keys = [k for k in API_KEY_POOL if k]
+
+# 🔥 铁血强洗：不仅过滤 None，还要剔除空字符串、前后空格、以及任何带引号的脏文本
+active_google_keys = []
+for k in API_KEY_POOL:
+    if k:
+        clean_k = str(k).strip().replace('"', '').replace("'", "")
+        # 强制剔除常见的云端死锁空值占位符
+        if clean_k and clean_k.upper() != "NONE" and clean_k != "":
+            active_google_keys.append(clean_k)
 
 if not active_google_keys:
-    print("❌ [M7-FATAL] 审计长官熔断：未在环境配置文件中发现任何可用的 GOOGLE_API_KEY！")
+    print("❌ [M7-FATAL] 审计长官熔断：未在环境配置文件中发现任何有效的 GOOGLE_API_KEY！")
     sys.exit(1)
 
-print(f"🟢 [M7-INIT] 成功激活 Gemini 大脑轮询阵列。当前可用密钥弹药量: {len(active_google_keys)} 发。")
-print("█"*112 + "\n")
+print(f"🟢 [M7-INIT] 成功激活 Gemini 大脑轮询阵列。当前去噪后的有效密钥弹药量: {len(active_google_keys)} 发。")
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
