@@ -1,3 +1,14 @@
+---
+title: M7 Multi Agent Terminal
+emoji: 📊
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_file: app.py
+pinned: false
+---
+
+
 # 📊 M7-ALPHA 量化多智能体主权控制仓 (M7-ALPHA Quantum Multi-Agent Terminal)
 
 ![Streamlit](https://img.shields.io/badge/Frontend-Streamlit-FF4B4B?style=for-the-badge)
