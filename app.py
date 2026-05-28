@@ -1,8 +1,12 @@
-# app.py (M7-ALPHA 主界面控制台终端 - FMP物理资产无损强吞完全体)
+# app.py (M7-ALPHA 主界面控制台终端 - FMP物理资产无损强吞完全体·持久化并网版)
 import streamlit as strl
 import os
 import sys
 import json
+from datetime import datetime
+import pytz
+import pandas as pd
+import yfinance as yf
 
 # =====================================================================
 # 🔌 M7-ALPHA 增强型宏观与舆情双向引擎注入点
@@ -18,6 +22,25 @@ if PROJECT_ROOT not in sys.path:
 from mcp_langgraph_agent import run_m7_audit
 from chart_engine import generate_m7_clean_charts
 
+# =====================================================================
+# 💾 核心缓存根目录重构：物理铁血对接 Hugging Face /data 持久化大坝
+# =====================================================================
+if os.path.exists("/data"):
+    BASE_CACHE_DIR = "/data"
+    print("🚀 [M7-APP] 成功探测到云端物理存储大坝！路径硬核并网至: /data")
+else:
+    BASE_CACHE_DIR = PROJECT_ROOT
+    print("💻 [M7-APP] 未发现云端物理盘，自动降级为本地开发路径")
+
+# 完璧对齐你的数据缓存盾牌文件夹
+DATA_CACHE_DIR = os.path.join(BASE_CACHE_DIR, "data_cache")
+if not os.path.exists(DATA_CACHE_DIR):
+    os.makedirs(DATA_CACHE_DIR, exist_ok=True)
+    try:
+        os.chmod(DATA_CACHE_DIR, 0o777)
+    except:
+        pass
+
 # 📋 NASDAQ 100 成分股标准备选池
 NASDAQ_100_POOL = sorted(list(set([
     "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "NVDA", "META", "TSLA", "AVGO", "PEP",
@@ -30,9 +53,6 @@ NASDAQ_100_POOL = sorted(list(set([
 strl.set_page_config(page_title="M7-ALPHA 量化多智能体终端", page_icon="📊", layout="wide")
 
 # =====================================================================
-# ⚙️ 控制中心侧边栏 - 双时区时钟与 Parquet 价格并网网关
-# =====================================================================
-# =====================================================================
 # ⚙️ 控制中心侧边栏 - 双时区终端时钟与 Parquet 价格自愈网关
 # =====================================================================
 with strl.sidebar:
@@ -40,18 +60,11 @@ with strl.sidebar:
     strl.caption("架构层: 工业级单画布四轴强联动合龙内核")
     strl.markdown("---")
     
-    # 🌟 核心功能一：双时区主权时钟实时监控（全宽通铺，彻底解决 ... 截断与时区报错问题）
-    from datetime import datetime
-    import pytz
-
-    # 精准定义时区
+    # 🌟 核心功能一：双时区主权时钟实时监控
     local_tz = pytz.timezone('Asia/Shanghai')
     est_tz = pytz.timezone('America/New_York')
     
-    # 获取带有时区感知的基础 UTC 时间
     now_utc = datetime.now(pytz.utc)
-    
-    # 🔥 【精准修复点】：100% 使用标准 astimezone() 进行安全时区转换
     local_now = now_utc.astimezone(local_tz)
     est_now = now_utc.astimezone(est_tz)
 
@@ -76,22 +89,17 @@ with strl.sidebar:
     period_choice = strl.radio("📈 K线周期切换:", options=["日K", "周K", "月K"], index=0, horizontal=True)
     strl.markdown("---")
     
-    # 🌟 核心功能二：资产价格网关（Parquet 物理缓存强吞与动态追加覆写）
+    # 🌟 核心功能二：资产价格网关（物理持久化存储大坝强吞）
     if selected_tickers:
         strl.markdown("### 💵 核心资产实时报价")
-        import pandas as pd
-        import yfinance as yf
-        
-        # 建立并校准数据缓存目录
-        DATA_CACHE_DIR = os.path.join(PROJECT_ROOT, "data_cache")
-        os.makedirs(DATA_CACHE_DIR, exist_ok=True)
         
         for ticker in selected_tickers:
+            # 🔥【精准对齐】：强制将价格 parquet 写入持久化大坝路径
             parquet_path = os.path.join(DATA_CACHE_DIR, f"{ticker.lower()}_10y.parquet")
             current_price = None
             price_source = "未知"
             
-            # 1. 穿透拉取本地 Parquet 物理库
+            # 1. 穿透拉取持久化 Parquet 物理库
             if os.path.exists(parquet_path):
                 try:
                     df_local = pd.read_parquet(parquet_path)
@@ -102,9 +110,9 @@ with strl.sidebar:
                         # 核心校准：如果本地最新数据的时间戳距离当前小于 15 分钟，视为最新价直接强吞
                         if (datetime.now(pytz.utc) - local_price_time.to_pydatetime().astimezone(pytz.utc)).total_seconds() < 900:
                             current_price = float(latest_row["Close"])
-                            price_source = "物理缓存 (Parquet)"
+                            price_source = "物理大坝 (Parquet)"
                 except Exception as p_err:
-                    print(f"读取本地 Parquet 缓存异常: {p_err}")
+                    print(f"读取持久化 Parquet 缓存异常: {p_err}")
             
             # 2. 缓存未命中/过期，穿透网络大坝追索最新动态报价
             if current_price is None:
@@ -115,18 +123,18 @@ with strl.sidebar:
                         current_price = float(todays_data["Close"].iloc[-1])
                         price_source = "实时并网 (yfinance)"
                         
-                        # 🔥 异步触发更新：下载 10 年历史长卷，重新覆盖固化本地 Parquet 盾牌
+                        # 异步触发更新：下载 10 年历史长卷，重新覆盖固化到 /data 持久化盾牌
                         full_df = ticker_obj.history(period="10y")
                         if not full_df.empty:
                             full_df.to_parquet(parquet_path)
                 except Exception as net_err:
                     print(f"动态抓取最新价失败: {net_err}")
-                    # 网络彻底断流时，强行切回 Parquet 物理库的最后一行数据进行容灾兜底
+                    # 网络彻底断流时，强行切回持久化 Parquet 物理库的最后一行数据进行容灾兜底
                     if os.path.exists(parquet_path):
                         try:
                             df_local = pd.read_parquet(parquet_path)
                             current_price = float(df_local.iloc[-1]["Close"])
-                            price_source = "本地兜底 (Parquet)"
+                            price_source = "物理大坝兜底"
                         except:
                             pass
 
@@ -185,7 +193,7 @@ with tab_market:
     else:
         strl.markdown("### 📈 实时宏观经济核心指标")
         
-        # 1. 物理调用原有引擎打捞数据（底层完好保留，不破坏天级缓存与 N/A 自愈机制）
+        # 1. 物理调用原有引擎打捞数据
         try:
             macro_data = macro_engine.get_macro_indicators()
             global_cached_macro = macro_data 
@@ -193,19 +201,16 @@ with tab_market:
             strl.error(f"宏观组件异常: {err}")
             macro_data = {}
             
-        # 💡【核心微调点】：放弃 st.columns，改用工业级全宽动态卡片流，确保长文本无损一吐到底
         if macro_data:
             macro_html_tiles = ""
             for name, val in macro_data.items():
-                # 根据指标属性，动态匹配高亮边框线颜色
                 if "新增" in str(val) or "+" in str(val):
-                    tile_border_color = "#00FF00"  # 绿色
+                    tile_border_color = "#00FF00"
                 elif "符合" in str(val) or "控" in str(val):
-                    tile_border_color = "#f0883e"  # 橙色
+                    tile_border_color = "#f0883e"
                 else:
-                    tile_border_color = "#58a6ff"  # 蓝色
+                    tile_border_color = "#58a6ff"
                 
-                # 每一个指标组装为一个独立的弹性 Tile 卡片
                 macro_html_tiles += f"""
                 <div style="
                     flex: 1; 
@@ -222,7 +227,6 @@ with tab_market:
                 </div>
                 """
             
-            # 使用 Flex 弹性伸缩布局包裹所有卡片，当侧边栏收缩或分屏时，数据会自动转为多行显示，绝对不带省略号
             strl.markdown(
                 f"""
                 <div style="display: flex; flex-wrap: wrap; justify-content: space-between; width: 100%; margin-bottom: 10px;">
@@ -237,14 +241,12 @@ with tab_market:
         strl.markdown("---")
         strl.markdown("### 📝 多智能体基本面联审研报")
         
-        # =====================================================================
-        # 🎯【以下你原本的代码逻辑原封不动，包括 selectbox、缓存打捞及状态机点火】
-        # =====================================================================
         audit_target = strl.selectbox("🎯 请选择本次点火 AI 联审的核心目标:", options=selected_tickers)
         
         report_container = strl.empty()
         
-        local_json_path = os.path.join(PROJECT_ROOT, f"fmp_cache_{audit_target}.json")
+        # 🔥【精准对齐】：将研报 JSON 缓存路径死死锁进 /data 持久化盘中
+        local_json_path = os.path.join(DATA_CACHE_DIR, f"fmp_cache_{audit_target}.json")
         has_local_json = os.path.exists(local_json_path)
         
         if "audit_cache" not in strl.session_state:
@@ -255,14 +257,14 @@ with tab_market:
                 with open(local_json_path, "r", encoding="utf-8") as f:
                     local_data = json.load(f)
                     raw_text = local_data.get("audit_report", json.dumps(local_data, ensure_ascii=False))
-                    strl.session_state["audit_cache"] = f"💡 [M7-FMP-DOCK] 已成功识别并打捞本地持久化核心资产：\n\n{raw_text[:1200]}..."
+                    strl.session_state["audit_cache"] = f"💡 [M7-FMP-DOCK] 已成功识别并打捞持久化物理资产大坝库：\n\n{raw_text[:1200]}..."
             except Exception as e:
-                print(f"读取本地 FMP JSON 异常: {e}")
+                print(f"读取持久化 FMP JSON 异常: {e}")
 
         if strl.session_state["audit_cache"]:
             report_container.markdown(strl.session_state["audit_cache"])
         else:
-            report_container.markdown(f"> 锁定战略主攻目标: **{audit_target}**。本地暂无物理库，点击下方按钮激活状态机。")
+            report_container.markdown(f"> 锁定战略主攻目标: **{audit_target}**。持久化物理库暂无记录，点击下方按钮激活状态机。")
 
         if strl.button("🚀 启动 AI 多维基本面联审 (点火状态机)", use_container_width=True):
             status_net.warning(f"🔄 正在唤醒本地子节点，审理 [{audit_target}] 中...")
@@ -280,6 +282,7 @@ with tab_market:
                             "period": period_choice,
                             "audit_report": audit_result
                         }
+                        # 🔥【精准对齐】：将生成的研报资产牢牢砸进物理磁盘
                         with open(local_json_path, "w", encoding="utf-8") as wf:
                             json.dump(structured_output, wf, ensure_ascii=False, indent=2)
                     except Exception as w_err:
@@ -308,7 +311,7 @@ with tab_market:
                     strl.markdown(item['summary'])
 
 # =====================================================================
-# 🦅 标签页 3：M7 主权决策战略操作仓 (100% 完整物理穿透吞噬逻辑，不卡死)
+# 🦅 标签页 3：M7 主权决策战略操作仓 (100% 完整物理穿透吞噬逻辑)
 # =====================================================================
 with tab_decision:
     strl.markdown(f"### 🦅 Gemini 3.5 多维因子自适应跨空间终极决策建议")
@@ -318,8 +321,8 @@ with tab_decision:
     if not decision_target:
         strl.info("⏳ 正在等待数据链合龙... 请确保在左侧控制中心至少选择了一支股票。")
     else:
-        # 🚀【核心防护】：硬核检测同级目录下是否存在 fmp_cache_{ticker}.json
-        local_json_file = os.path.join(PROJECT_ROOT, f"fmp_cache_{decision_target}.json")
+        # 🔥【精准对齐】：决策端硬核强刷 /data 持久化盘下的 json 历史记录
+        local_json_file = os.path.join(DATA_CACHE_DIR, f"fmp_cache_{decision_target}.json")
         is_fundamental_ready = bool(strl.session_state.get("audit_cache")) or os.path.exists(local_json_file)
 
         # 动态状态通关灯排布
@@ -328,7 +331,7 @@ with tab_decision:
         d_col2.markdown(f"📈 宏观因子墙: <span style='color:#00FF00;'>🟢 已就绪</span>", unsafe_allow_html=True)
         
         if is_fundamental_ready:
-            d_col3.markdown(f"📝 FMP基本面: <span style='color:#00FF00; font-weight:bold;'>🟢 已读取本地物理缓存</span>", unsafe_allow_html=True)
+            d_col3.markdown(f"📝 FMP基本面: <span style='color:#00FF00; font-weight:bold;'>🟢 已读取持久化物理库</span>", unsafe_allow_html=True)
         else:
             d_col3.markdown(f"📝 FMP基本面: <span style='color:#FF9900;'>⚠️ 未发现本地物理库，将常识推理</span>", unsafe_allow_html=True)
             
@@ -345,7 +348,7 @@ with tab_decision:
                 
                 final_audit_content = strl.session_state.get("audit_cache", "")
                 
-                # 【物理穿透自愈核心】：如果变量丢失，无条件穿透去强吞本地的 fmp_cache_{ticker}.json 财报原始数据
+                # 🔥【物理穿透自愈核心】：无条件穿透去强吞持久化大坝盘下的原始财报数据
                 if not final_audit_content or "💡" not in final_audit_content:
                     if os.path.exists(local_json_file):
                         try:
@@ -356,16 +359,12 @@ with tab_decision:
                                 else:
                                     final_audit_content = json.dumps(local_json_data, ensure_ascii=False, indent=2)
                                 
-                                # 回填内存
-                                strl.session_state["audit_cache"] = f"💡 [M7-EMERGENCY-DOCK] 成功吞噬本地 FMP 原始财报数据"
+                                strl.session_state["audit_cache"] = f"💡 [M7-EMERGENCY-DOCK] 成功吞噬持久化大坝 FMP 原始财报数据"
                         except Exception as file_err:
-                            final_audit_content = f"强吞本地 FMP 资产发生异常: {str(file_err)}"
+                            final_audit_content = f"强吞持久化 FMP 资产发生异常: {str(file_err)}"
 
-                # 💡【核心修复点】：动态获取每次点击按钮时的绝对真实时间
-                from datetime import datetime
                 current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S (UTC+8)")
                 
-                # 组装强指令前缀，强行约束大模型的报告生成行为
                 time_anchor_instruction = (
                     f"【M7系统高优先级时钟注入】\n"
                     f"当前最新的绝对操作时间为: {current_time_str}。\n"
@@ -374,27 +373,24 @@ with tab_decision:
                     f"==================================================\n\n"
                 )
                 
-                # 将时间指针随财报上下文一同注入大脑
                 final_audit_content_with_time = time_anchor_instruction + final_audit_content
 
-                # 提取引擎兜底参数
                 macro_input = global_cached_macro if global_cached_macro else macro_engine.get_macro_indicators()
                 stock_news_input = global_cached_stock_news if global_cached_stock_news else news_engine.get_latest_news(query_type="stock", topic=decision_target, limit=5)
                 geo_news_input = global_cached_geo_news if global_cached_geo_news else news_engine.get_latest_news(query_type="geopolitics", limit=5)
                 
-                # 🚀 降维投递至决策大脑组件
                 raw_decision_report = decision_engine.generate_m7_weekly_decision(
                     ticker=decision_target,
                     period_choice=period_choice,
                     macro_data=macro_input,
-                    audit_text=final_audit_content_with_time, # 带有当前最新时间锚点的数据流
+                    audit_text=final_audit_content_with_time,
                     stock_news=stock_news_input,
                     geo_news=geo_news_input
                 )
                 strl.session_state[decision_cache_key] = raw_decision_report
                 
         # =====================================================================
-        # 🏁 纯净 Markdown 清洗渲染器（规避 Langchain/JSON 串打印乱码）
+        # 🏁 纯净 Markdown 清洗渲染器
         # =====================================================================
         if strl.session_state[decision_cache_key]:
             strl.markdown('<div style="background-color:#111625; padding:12px; border-radius:8px; border-left: 5px solid #00FF00; margin-bottom: 15px;"><h4 style="color:#00FF00; margin-top:0px; margin-bottom:0px; font-family: monospace;">🦅 M7 量化主权研报体系 · 决策流完美合龙</h4></div>', unsafe_allow_html=True)

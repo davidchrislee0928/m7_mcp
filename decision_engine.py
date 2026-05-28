@@ -1,4 +1,4 @@
-# decision_engine.py (M7-ALPHA 中央高维量化决策引擎 · 内存动态量化因子生成完全体)
+# decision_engine.py (M7-ALPHA 中央高维量化决策引擎 · 内存动态量化因子生成完全体·持久化并网版)
 import os
 import json
 import random
@@ -13,7 +13,7 @@ print("⚙️ [M7-TRACE-BOOT] 正在加载 M7 决策大脑动态因子解算环�
 load_dotenv()
 
 # =====================================================================
-# 📌 【铁血多 Key 轮流化缘池】
+# 📌 【铁血多 Key 轮流化缘池】（高精清洗并网版）
 # =====================================================================
 API_KEY_POOL = [
     os.environ.get("GOOGLE_API_KEY1"),
@@ -22,17 +22,38 @@ API_KEY_POOL = [
     os.environ.get("GOOGLE_API_KEY4"),
     os.environ.get("GOOGLE_API_KEY"), 
 ]
-active_google_keys = [k for k in API_KEY_POOL if k]
+
+# 🔥 铁血强洗：物理剥离所有 None、空字符串、前后空格、以及不小心带上的单双引号
+active_google_keys = []
+for k in API_KEY_POOL:
+    if k:
+        clean_k = str(k).strip().replace('"', '').replace("'", "")
+        if clean_k and clean_k.upper() != "NONE" and clean_k != "":
+            active_google_keys.append(clean_k)
+
 if not active_google_keys:
     print("❌ [M7-FATAL] 铁血审计长官熔断：未在环境配置文件中发现任何可用的 GOOGLE_API_KEY！")
     sys.exit(1)
+
 
 def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, stock_news, geo_news):
     print(f"🧠 [M7-DECISION-ENGINE] 正在从本地 Parquet 动态计算 [{ticker}] 均线与布林带矩阵...")
     
     latest_market_metrics = {}
     try:
-        parquet_path = f"data_cache/{ticker}_10y.parquet"
+        # =====================================================================
+        # 💾 【核心微调点】动态并网 /data 持久化物理盘，与前端数据大军无损合龙
+        # =====================================================================
+        PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
+        if os.path.exists("/data"):
+            BASE_CACHE_DIR = "/data"
+        else:
+            BASE_CACHE_DIR = PROJECT_ROOT
+            
+        # 强制对齐共享的物理持久化数据中心
+        DATA_CACHE_DIR = os.path.join(BASE_CACHE_DIR, "data_cache")
+        parquet_path = os.path.join(DATA_CACHE_DIR, f"{ticker.lower()}_10y.parquet")
+        
         if os.path.exists(parquet_path):
             df = pd.read_parquet(parquet_path)
             if not df.empty:
@@ -88,7 +109,7 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
                     "MACD物理状态": "零轴上方多头放量形态" if macd_val >= 0 else "零轴下方空头修正形态"
                 }
         else:
-            print(f"⚠️ [DECISION-WARN] 本地未定位到 {parquet_path}，将启用实盘骨架兜底。")
+            print(f"⚠️ [DECISION-WARN] 本地未定位到持久化盘 {parquet_path}，将启用实盘骨架兜底。")
     except Exception as e:
         print(f"❌ 动态内存因子算力解算崩溃: {e}")
 

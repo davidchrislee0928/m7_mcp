@@ -50,7 +50,26 @@ print(f"🟢 [M7-INIT] 成功激活 Gemini 大脑轮询阵列。当前去噪后�
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
-CACHE_DIR = os.path.dirname(os.path.abspath(__file__))
+# =====================================================================
+# 💾 【定向微调点】二阶持久化存储大坝路由动态并网
+# =====================================================================
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+if os.path.exists("/data"):
+    BASE_CACHE_DIR = "/data"
+    print("🚀 [M7-AGENT] 成功探测到云端物理存储大坝！路径硬核并网至: /data")
+else:
+    BASE_CACHE_DIR = PROJECT_ROOT
+    print("💻 [M7-AGENT] 未发现云端物理盘，自动降级为本地开发路径")
+
+# 完璧对齐你在 app.py 里设计的 data_cache 文件夹
+CACHE_DIR = os.path.join(BASE_CACHE_DIR, "data_cache")
+if not os.path.exists(CACHE_DIR):
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    try:
+        os.chmod(CACHE_DIR, 0o777)
+    except:
+        pass
 
 # =====================================================================
 # ⚙️ 核心一阶数据打捞：对齐 FMP 官方 2026 最新标准 Query 参数通道
@@ -91,6 +110,7 @@ def get_income_statement_fmp(symbol: str) -> list:
 # =====================================================================
 def get_m7_financial_packet_with_cache(symbol: str) -> dict:
     symbol = symbol.upper().strip()
+    # 🔥【精确对齐】：将财务原始数据 JSON 完美定位在物理大坝存储盘下
     cache_file_path = os.path.join(CACHE_DIR, f"fmp_cache_{symbol}.json")
     
     if os.path.exists(cache_file_path):
@@ -158,8 +178,7 @@ def run_m7_audit(ticker_symbol: str, kline_period: str = "日K"):
     selected_key = random.choice(active_google_keys)
     print(f"🎲 [M7-LOG-ROULETTE] 阵列抽取活弹密钥通道: [...{selected_key[-6:] if selected_key else 'None'}]")
     
-    # 🌟 🌟 🌟 【精准纠偏：修正官方放行真名 gemini-1.5-pro-latest】 🌟 🌟 🌟
-    # 解决 404 找不到模型的报错死穴，同时物理抹除 max_tokens 限制，彻底解放生成极限
+    # 🌟 🌟 🌟 【精准并网：100% 遵照用户指示保持固有模型选择】 🌟 🌟 🌟
     llm = ChatGoogleGenerativeAI(
         model="gemini-3.5-flash", 
         temperature=0.01,
@@ -177,7 +196,7 @@ def run_m7_audit(ticker_symbol: str, kline_period: str = "日K"):
         f"## 🪐 时空锚定\n"
         f"当前真实时间是：**{current_date_cn}** (系统日期：{current_date})。看盘周期为：【{kline_period}】。\n\n"
         f"## 🛡️ 首席审计官三大硬核铁律\n"
-        f"1. **禁止脑补修改年份**：必须如实呈现一句话原始数据中的具体截止日期（例如 NVDA 对应的 2025-10-26, 2026-01-25, 2026-04-26）。严禁虚报财年季度！\n"
+        f"1. **禁止脑补修改年份**：固化截止日期（例如 NVDA 对应的 2025-10-26, 2026-01-25, 2026-04-26）。严禁虚报财年季度！\n"
         f"2. **数字格式化物理防御**：必须彻底封杀任何科学计数法！100%采用人类操盘手秒懂的『亿美元』本位结算（如 816.15 亿美元，不准写成原始长串数字）。\n"
         f"3. **必须完整一吐到底**：严格按照一、二、三的章节大纲输出，必须把所有指标的环比、同比以及第三部分健康度论断全部完整交卷，绝对不准中途漏掉！\n\n"
         f"---\n"
@@ -206,7 +225,7 @@ def run_m7_audit(ticker_symbol: str, kline_period: str = "日K"):
     
     # 🌟 4. 单兵直连点火与正文安全提取
     try:
-        print("📡 [M7-LOG-LLM] 3. 正在向满血 Gemini Pro 通道发送 Invoke 指令，全量长卷计算开始...")
+        print("📡 [M7-LOG-LLM] 3. 正在向满血 Gemini 通道发送 Invoke 指令，全量长卷计算开始...")
         response = llm.invoke([SystemMessage(content=system_instruction), HumanMessage(content=user_task)])
         print("🟢 [M7-LOG-LLM] 4. 大脑计算响应成功！开始解析对象拓扑结构...")
         
