@@ -8,3 +8,4 @@ langchain-google-genai
 pyarrow
 python-dotenv
 plotly
+mcp>=1.0.0
