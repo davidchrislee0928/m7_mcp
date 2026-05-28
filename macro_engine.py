@@ -1,4 +1,4 @@
-# macro_engine.py (M7-ALPHA 宏观多维因子仓储中心·多层级矩阵降维完璧版)
+# macro_engine.py (M7-ALPHA 宏观多维因子仓储中心·多层级矩阵降维完璧版·持久化并网完全体)
 import os
 import json
 import datetime
@@ -6,9 +6,27 @@ import requests
 import traceback
 import yfinance as yf
 
+# =====================================================================
+# 💾 【核心微调点】动态并网 /data 持久化物理盘，与全量数据大军完美会师
+# =====================================================================
 PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
-CACHE_DIR = os.path.join(PROJECT_ROOT, "data_cache")
-os.makedirs(CACHE_DIR, exist_ok=True)
+
+if os.path.exists("/data"):
+    BASE_CACHE_DIR = "/data"
+    print("🚀 [M7-MACRO] 成功探测到云端物理存储大坝！宏观因子路径并网至: /data")
+else:
+    BASE_CACHE_DIR = PROJECT_ROOT
+    print("💻 [M7-MACRO] 未发现云端物理盘，自动降级为本地开发路径")
+
+# 完璧对齐全系统的 data_cache 持久化隔离槽
+CACHE_DIR = os.path.join(BASE_CACHE_DIR, "data_cache")
+if not os.path.exists(CACHE_DIR):
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    try:
+        os.chmod(CACHE_DIR, 0o777)
+    except:
+        pass
+
 
 def get_macro_indicators() -> dict:
     """
@@ -57,7 +75,6 @@ def get_macro_indicators() -> dict:
             df = yf.download(ticker, period="5d", interval="1d", auto_adjust=True, group_by='ticker')
             if not df.empty:
                 # 🚀 🚀 🚀【核心突破点：不管你包几层，强制拍平矩阵提取最末尾浮点数】
-                # 利用 columns.data 降维，或直接提取特定列的最后一物理行
                 if 'Close' in df.columns:
                     close_series = df['Close']
                 else:
@@ -75,7 +92,7 @@ def get_macro_indicators() -> dict:
                     else:
                         macro_snapshot[key] = f"{last_close_val:.2f}"
                 else:
-                    print(f"⚠️ [M7-MACRO] 标的 [{key}] 的收盘数据序列为空")
+                    print(f"⚠️ [M7-MACRO] 局域标的 [{key}] 的收盘数据序列为空")
         except Exception as yf_err:
             print(f"❌ [M7-MACRO] 穿透打捞 [{key}] 时遭遇内部异常: {yf_err}")
             traceback.print_exc()
@@ -84,7 +101,7 @@ def get_macro_indicators() -> dict:
     try:
         with open(cache_file, "w", encoding="utf-8") as f:
             json.dump({"fetched_at": today_str, "data": macro_snapshot}, f, ensure_ascii=False, indent=2)
-        print("💾 [M7-MACRO] 全球宏观核心账本已安全固化入本地磁盘。")
+        print("💾 [M7-MACRO] 全球宏观核心账本已安全固化入持久化物理大坝。")
     except Exception as save_err:
         print(f"⚠️ [M7-MACRO] 固化宏观缓存文件异常: {save_err}")
         
