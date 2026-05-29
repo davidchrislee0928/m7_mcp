@@ -70,20 +70,53 @@ with strl.sidebar:
 
     strl.markdown("### 🕒 跨空间精确时钟")
     strl.markdown(
-        f"""
+        """
         <div style="background-color:#161b22; padding:10px; border-radius:6px; border-left:4px solid #00FF00; margin-bottom:10px;">
             <p style="margin:0; color:#8b949e; font-size:11px; font-family:monospace;">北京时间 (Asia/Shanghai)</p>
-            <p style="margin:0; color:#58a6ff; font-size:18px; font-weight:bold; font-family:monospace;">{local_now.strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p id="m7-clock-beijing" style="margin:0; color:#58a6ff; font-size:18px; font-weight:bold; font-family:monospace;">加载中...</p>
         </div>
         <div style="background-color:#161b22; padding:10px; border-radius:6px; border-left:4px solid #ff9900; margin-bottom:15px;">
             <p style="margin:0; color:#8b949e; font-size:11px; font-family:monospace;">纽约时间 (EST/EDT 自动对齐)</p>
-            <p style="margin:0; color:#f0883e; font-size:18px; font-weight:bold; font-family:monospace;">{est_now.strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <p id="m7-clock-newyork" style="margin:0; color:#f0883e; font-size:18px; font-weight:bold; font-family:monospace;">加载中...</p>
         </div>
+
+        <script>
+        function updateM7Clocks() {
+            const now = new Date();
+            
+            // 1. 精准提取北京时间 (Intl.DateTimeFormat 强行指定 Asia/Shanghai 协议栈)
+            const optionsBeijing = {
+                timeZone: 'Asia/Shanghai',
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: 'numeric', minute: '2-digit', second: '2-digit',
+                hour12: false
+            };
+            const formatterBeijing = new Intl.DateTimeFormat('zh-CN', optionsBeijing);
+            const partsBeijing = formatterBeijing.formatToParts(now);
+            const bjStr = `${partsBeijing.find(p => p.type === 'year').value}-${partsBeijing.find(p => p.type === 'month').value}-${partsBeijing.find(p => p.type === 'day').value} ${partsBeijing.find(p => p.type === 'hour').value}:${partsBeijing.find(p => p.type === 'minute').value}:${partsBeijing.find(p => p.type === 'second').value}`;
+            document.getElementById('m7-clock-beijing').innerText = bjStr;
+
+            // 2. 精准提取纽约时间 (自动兼容 EST 标准时 与 EDT 夏令时切换大坝)
+            const optionsNewYork = {
+                timeZone: 'America/New_York',
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: 'numeric', minute: '2-digit', second: '2-digit',
+                hour12: false
+            };
+            const formatterNewYork = new Intl.DateTimeFormat('zh-CN', optionsNewYork);
+            const partsNewYork = formatterNewYork.formatToParts(now);
+            const nyStr = `${partsNewYork.find(p => p.type === 'year').value}-${partsNewYork.find(p => p.type === 'month').value}-${partsNewYork.find(p => p.type === 'day').value} ${partsNewYork.find(p => p.type === 'hour').value}:${partsNewYork.find(p => p.type === 'minute').value}:${partsNewYork.find(p => p.type === 'second').value}`;
+            document.getElementById('m7-clock-newyork').innerText = nyStr;
+        }
+
+        // 🚨 核心点火：首次加载立即合龙，随后每隔 1000 毫秒（1秒）全自动心跳复写
+        updateM7Clocks();
+        setInterval(updateM7Clocks, 1000);
+        </script>
         """, 
         unsafe_allow_html=True
     )
     strl.markdown("---")
-
     # 纳指成分股与K线周期标准选择器
     selected_tickers = strl.multiselect("🔮 请选择要审计的纳指成份股:", options=NASDAQ_100_POOL, default=["GOOGL", "NVDA"])
     period_choice = strl.radio("📈 K线周期切换:", options=["日K", "周K", "月K"], index=0, horizontal=True)
