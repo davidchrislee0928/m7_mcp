@@ -69,22 +69,26 @@ with strl.sidebar:
     est_now = now_utc.astimezone(est_tz)
 
     strl.markdown("### 🕒 跨空间精确时钟")
-    strl.markdown(
+    import streamlit.components.v1 as components
+
+    # 🚀 放弃 st.markdown 注入，改用官方标准的 components.html 物理物理隔离网关
+    # 这会在容器内部拉起一个合法合规的独立微型画布，100% 免疫 Hugging Face 的沙盒拦截！
+    components.html(
         """
-        <div style="background-color:#161b22; padding:10px; border-radius:6px; border-left:4px solid #00FF00; margin-bottom:10px;">
-            <p style="margin:0; color:#8b949e; font-size:11px; font-family:monospace;">北京时间 (Asia/Shanghai)</p>
-            <p id="m7-clock-beijing" style="margin:0; color:#58a6ff; font-size:18px; font-weight:bold; font-family:monospace;">加载中...</p>
+        <div style="background-color:#161b22; padding:10px; border-radius:6px; border-left:4px solid #00FF00; margin-bottom:10px; font-family:monospace;">
+            <p style="margin:0 0 4px 0; color:#8b949e; font-size:11px;">北京时间 (Asia/Shanghai)</p>
+            <p id="m7-clock-beijing" style="margin:0; color:#58a6ff; font-size:18px; font-weight:bold;">同步中...</p>
         </div>
-        <div style="background-color:#161b22; padding:10px; border-radius:6px; border-left:4px solid #ff9900; margin-bottom:15px;">
-            <p style="margin:0; color:#8b949e; font-size:11px; font-family:monospace;">纽约时间 (EST/EDT 自动对齐)</p>
-            <p id="m7-clock-newyork" style="margin:0; color:#f0883e; font-size:18px; font-weight:bold; font-family:monospace;">加载中...</p>
+        <div style="background-color:#161b22; padding:10px; border-radius:6px; border-left:4px solid #ff9900; margin-bottom:15px; font-family:monospace;">
+            <p style="margin:0 0 4px 0; color:#8b949e; font-size:11px;">纽约时间 (EST/EDT 自动对齐)</p>
+            <p id="m7-clock-newyork" style="margin:0; color:#f0883e; font-size:18px; font-weight:bold;">同步中...</p>
         </div>
 
         <script>
         function updateM7Clocks() {
             const now = new Date();
             
-            // 1. 精准提取北京时间 (Intl.DateTimeFormat 强行指定 Asia/Shanghai 协议栈)
+            // 1. 精准提取北京时间
             const optionsBeijing = {
                 timeZone: 'Asia/Shanghai',
                 year: 'numeric', month: '2-digit', day: '2-digit',
@@ -96,7 +100,7 @@ with strl.sidebar:
             const bjStr = `${partsBeijing.find(p => p.type === 'year').value}-${partsBeijing.find(p => p.type === 'month').value}-${partsBeijing.find(p => p.type === 'day').value} ${partsBeijing.find(p => p.type === 'hour').value}:${partsBeijing.find(p => p.type === 'minute').value}:${partsBeijing.find(p => p.type === 'second').value}`;
             document.getElementById('m7-clock-beijing').innerText = bjStr;
 
-            // 2. 精准提取纽约时间 (自动兼容 EST 标准时 与 EDT 夏令时切换大坝)
+            // 2. 精准提取纽约时间 (自动兼容 EST 与 EDT 夏令时切换)
             const optionsNewYork = {
                 timeZone: 'America/New_York',
                 year: 'numeric', month: '2-digit', day: '2-digit',
@@ -109,12 +113,15 @@ with strl.sidebar:
             document.getElementById('m7-clock-newyork').innerText = nyStr;
         }
 
-        // 🚨 核心点火：首次加载立即合龙，随后每隔 1000 毫秒（1秒）全自动心跳复写
+        // 🚨 核心点火：首次加载立即合龙，随后每隔 1000 毫秒（1秒）前端全自动无感复写
         updateM7Clocks();
         setInterval(updateM7Clocks, 1000);
         </script>
-        """, 
-        unsafe_allow_html=True
+        <style>
+            body { margin: 0; background-color: transparent; overflow: hidden; }
+        </style>
+        """,
+        height=145,  # 紧凑型物理高度对齐，确保大屏绝不留白或截断
     )
     strl.markdown("---")
     # 纳指成分股与K线周期标准选择器
