@@ -68,43 +68,44 @@ strl.set_page_config(page_title="M7-ALPHA 量化多智能体终端", page_icon="
 # =====================================================================
 # 🚀🔥【布局提权自愈】：大标题区与时钟区分裂 (2026全新 st.fragment 局部动能流 · 纯 Python 毫秒级自驱动秒跳完全体)
 # =====================================================================
-title_col, clock_col = strl.columns([6, 4])
+# =====================================================================
+# 🚀🔥【布局提权自愈】：大标题区与时钟区分裂 (WebSocket 动能硬清洗 · 纯 Python 毫秒级自驱动真点跳完全体)
+# =====================================================================
+title_col, clock_col = strl.columns([5, 5]) # 微调比例，给双时区大数留足横向物理空间
 
 with title_col:
     strl.markdown("# 📊 M7-ALPHA 美国宏观经济指标")
 
 with clock_col:
-    # 🌟 核心破冰防线：利用 st.fragment 将时钟声明为独立的局部刷新原子
-    # run_every=1 强行锁死 Python 底层脉冲，每隔 1 秒在不重绘大盘K线的情况下，强行逼迫前台时钟秒跳！
+    # 🌟 终极自愈防线：将时钟完全剥离为无 HTML 杂质的纯净 Fragment 局部渲染原子
+    # 强制锁死 1 秒脉冲，通过官方原生的 WebSocket 通道每秒直接洗牌前台数字，彻底粉碎缓存死锁！
     @strl.fragment(run_every=1)
-    def render_m7_realtime_clocks_stream():
+    def render_m7_absolute_live_clocks():
         try:
-            # 现场捕获微秒级多时区数字
-            bj_time = datetime.now(pytz.timezone('Asia/Shanghai')).strftime("%Y-%m-%d %H:%M:%S")
-            ny_time = datetime.now(pytz.timezone('America/New_York')).strftime("%Y-%m-%d %H:%M:%S")
-        except:
-            bj_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            ny_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # 穿透时区底层抓取当前微秒级时间大数
+            now_bj = datetime.now(pytz.timezone('Asia/Shanghai'))
+            now_ny = datetime.now(pytz.timezone('America/New_York'))
+            
+            bj_date = now_bj.strftime("%Y-%m-%d")
+            bj_time = now_bj.strftime("%H:%M:%S")
+            
+            ny_date = now_ny.strftime("%Y-%m-%d")
+            ny_time = now_ny.strftime("%H:%M:%S")
+        except Exception:
+            bj_date, bj_time = "同步中...", "00:00:00"
+            ny_date, ny_time = "同步中...", "00:00:00"
 
-        # 抛弃任何 JS script，直接用纯净的静态 HTML 排版，由 Python 在内存画布里高频“翻牌”
-        strl.html(
-            f"""
-            <div style="display: flex; gap: 8px; justify-content: flex-end; font-family: monospace; padding-top: 25px;">
-                <div style="background-color:#161b22; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #00FF00; min-width: 175px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                    <p style="margin:0; color:#8b949e; font-size:10px; font-weight: bold;">北京时间 (SHANGHAI)</p>
-                    <div style="margin:0; color:#58a6ff; font-size:14px; font-weight:bold; letter-spacing: 0.5px;">{bj_time}</div>
-                </div>
-                <div style="background-color:#161b22; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #ff9900; min-width: 175px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                    <p style="margin:0; color:#8b949e; font-size:10px; font-weight: bold;">纽约时间 (NEW YORK)</p>
-                    <div style="margin:0; color:#f0883e; font-size:14px; font-weight:bold; letter-spacing: 0.5px;">{ny_now if 'ny_now' in locals() else ny_time}</div>
-                </div>
-            </div>
-            <style>body {{ margin: 0; background-color: transparent; overflow: hidden; }}</style>
-            """
-        )
+        # 🚀 现场搓出两个并排的原生高敏 Metric 画布
+        sub_c1, sub_c2 = strl.columns(2)
+        
+        # 利用原生 metric 的硬擦除机制，每秒直接物理干翻前台显示，达成完全不需要任何点击的自驱动秒跳！
+        with sub_c1:
+            strl.metric(label="🟢 北京时间 (SHANGHAI)", value=bj_time, delta=bj_date, delta_color="off")
+        with sub_c2:
+            strl.metric(label="🟠 纽约时间 (NEW YORK)", value=ny_time, delta=ny_date, delta_color="off")
 
-    # 🚀 物理现场点火拉起
-    render_m7_realtime_clocks_stream()
+    # 🚀 物理现场点火拉起，全自动高频空转
+    render_m7_absolute_live_clocks()
 # =====================================================================
 with strl.sidebar:
     strl.title("⚙️ 纳斯达克100股票选择")
