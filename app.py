@@ -1,4 +1,4 @@
-# app.py (M7-ALPHA 主界面控制台终端 - 2026全局内存大坝·零转圈纯净自愈完全体)
+# app.py (M7-ALPHA 主界面控制台终端 - 前收盘价真基准校准·完全体版)
 import streamlit as strl
 import os
 import sys
@@ -42,14 +42,15 @@ NASDAQ_100_POOL = sorted(list(set([
 strl.set_page_config(page_title="M7-ALPHA 量化多智能体终端", page_icon="📊", layout="wide")
 
 # =====================================================================
-# 🧠 🛡️ 【全局共享进程内存大坝】：彻底解耦线程死锁
+# 🧠 🛡️ 【全局共享进程内存大坝】：前收盘价硬核咬合加固
 # =====================================================================
 if "M7_GLOBAL_STATIC_MEM" not in globals():
     globals()["M7_GLOBAL_STATIC_MEM"] = {}
     globals()["M7_TARGET_TICKERS"] = ["GOOGL", "NVDA"]
 
 def m7_async_market_core_pump():
-    """独立于 Streamlit 主生命周期之外的硬核全自动高频异步数据打捞网关"""
+    """独立于 Streamlit 主进程之外的操作系统级守护线程
+    昨收价双轨解算引擎，完美对齐真实行情走势"""
     while True:
         try:
             ny_tz = pytz.timezone('America/New_York')
@@ -58,37 +59,50 @@ def m7_async_market_core_pump():
             current_time_str = now_ny.strftime("%H:%M")
             is_open = is_weekday and ("09:30" <= current_time_str <= "16:00")
             
-            # 动态获取当前前台锁定的需要紧急同步的个股
             targets = list(globals()["M7_TARGET_TICKERS"])
             if targets:
                 for t in targets:
                     try:
                         ticker_obj = yf.Ticker(t)
-                        # 开盘抓取超短高敏实时流，休盘抓取5天结算流
-                        df_stock = ticker_obj.history(period="2d", interval="1m" if is_open else "1d", auto_adjust=True)
-                        if not df_stock.empty:
-                            close_series = df_stock["Close"].dropna().values.flatten()
-                            if len(close_series) >= 2:
-                                curr_p = float(close_series[-1])
-                                prev_p = float(close_series[-2])
-                                # 💡 如果是非交易时段日线，取昨日收盘；如果是分时，取前一分钟
-                                p_change = curr_p - prev_p
-                                p_pct = (p_change / prev_p) * 100
-                                
-                                # 100% 安全写入全局物理内存字典，绕过 session_state 沙盒死锁
-                                globals()["M7_GLOBAL_STATIC_MEM"][t] = {
-                                    "curr": curr_p, "change": p_change, "pct": p_pct, "updated": time.time()
-                                }
+                        
+                        # 🚀 轨一：拉取最新鲜的实时价格
+                        df_live = ticker_obj.history(period="1d", interval="1m" if is_open else "1d", auto_adjust=True)
+                        if df_live.empty:
+                            continue
+                        curr_p = float(df_live["Close"].dropna().values[-1])
+                        
+                        # 🚀 轨二：极速解算标准历史日线，物理提取【真正的昨收价】
+                        # 为了对抗节假日与深夜除权，直接拉取5天日K，倒数第二根K线必是昨收价
+                        df_daily = ticker_obj.history(period="5d", interval="1d", auto_adjust=True)
+                        if not df_daily.empty:
+                            daily_closes = df_daily["Close"].dropna().values.flatten()
+                            
+                            if is_open:
+                                # 🟢 如果在开盘时段：最新一条日K可能包含今天，所以上一条 [-2] 是昨收
+                                prev_p = float(daily_closes[-2]) if len(daily_closes) >= 2 else float(daily_closes[-1])
+                            else:
+                                # 🌙 如果在休盘时段：最新一条日K已经是收盘价了，前一日则是 [-2]
+                                prev_p = float(daily_closes[-2]) if len(daily_closes) >= 2 else float(daily_closes[-1])
+                        else:
+                            # 灾备三级兜底：从 Info 字典里直接化缘 previousClose
+                            prev_p = float(ticker_obj.info.get("previousClose", curr_p))
+
+                        # 高精度执行主权看盘涨跌解算
+                        p_change = curr_p - prev_p
+                        p_pct = (p_change / prev_p) * 100
+                        
+                        # 100% 纯净数据推入全局内存大坝
+                        globals()["M7_GLOBAL_STATIC_MEM"][t] = {
+                            "curr": curr_p, "change": p_change, "pct": p_pct, "updated": time.time()
+                        }
                     except Exception as inner_err:
-                        print(f"后台打捞 {t} 异常: {inner_err}")
+                        print(f"后台双轨打捞 {t} 异常: {inner_err}")
             
-            # 交易时段 10 秒微秒级跃迁，休盘时段 30 秒跟进
             time.sleep(10 if is_open else 30)
         except Exception as global_err:
             print(f"大坝主循环异常: {global_err}")
             time.sleep(10)
 
-# 铁血冷启动：拉起守护线程
 if "M7_THREAD_LOCK" not in globals():
     globals()["M7_THREAD_LOCK"] = True
     t_pump = threading.Thread(target=m7_async_market_core_pump, daemon=True)
@@ -113,20 +127,18 @@ def atomic_live_clock_gateway():
     c2.metric(label="🟠 纽约时间 (NEW YORK)", value=ny_time, delta=ny_date, delta_color="off")
 
 # =====================================================================
-# 🚀🔥【原子提权 Fragment 二】：10s 绝对无感静默股价更新原子
+# 🚀🔥【原子提权 Fragment 二】：昨收基准级·10s零转圈股价原子
 # =====================================================================
-@strl.fragment(run_every=10)
+@strl.fragment(run_every=5)
 def atomic_sidebar_prices_gateway(selected_list):
-    """纯净计算原子：不带任何耗时网络IO，每10秒只花0.001毫秒进行数据映射，永不触发Stop圈"""
     if selected_list:
-        # 实时同步最新的自选名单到后台守护进程中，逼迫其精准冲锋打捞
         globals()["M7_TARGET_TICKERS"] = selected_list
         
         strl.markdown("### 💵 核心资产实时报价")
         ny_tz = pytz.timezone('America/New_York')
         now_ny = datetime.now(ny_tz)
         is_market_open = now_ny.weekday() < 5 and ("09:30" <= now_ny.strftime("%H:%M") <= "16:00")
-        strl.caption("⚡ [开盘高频同步] 侧边栏报价已锁死 10s 级异步无感点跳" if is_market_open else "🌙 美股休盘时段 · 维持最新历史快照")
+        strl.caption("⚡ [昨收基准对齐] 侧边栏报价已锁死 10s 级异步无感点跳" if is_market_open else "🌙 美股休盘时段 · 维持最新历史快照")
 
         for ticker in selected_list:
             mem = globals()["M7_GLOBAL_STATIC_MEM"].get(ticker)
@@ -136,26 +148,26 @@ def atomic_sidebar_prices_gateway(selected_list):
                 p_change = mem["change"]
                 p_pct = mem["pct"]
                 
-                # 精准剥离多余符号，显式规范：上涨绿，下跌红
+                # 🛡️ 物理提权：清理多余前置箭头符号，避免和 st.metric 底层图标打架
+                # 显式控制：上涨正常绿（normal），下跌反转红（inverse）
                 if p_change > 0:
-                    p_delta_str = f"${p_change:.2f} ({p_pct:+.2f}%)"
-                    m_color = "normal"   # 绿色
+                    p_delta_str = f"${p_change:+.2f} ({p_pct:+.2f}%)"
+                    m_color = "normal"   
                 elif p_change < 0:
                     p_delta_str = f"${p_change:.2f} ({p_pct:+.2f}%)"
-                    m_color = "inverse"  # 红色
+                    m_color = "inverse"  
                 else:
                     p_delta_str = f"$0.00 (0.00%)"
-                    m_color = "off"      # 灰色
+                    m_color = "off"
                 
                 strl.metric(label=f"标的: {ticker}", value=f"${curr_p:.2f}", delta=p_delta_str, delta_color=m_color)
             else:
-                # 灾备冷缓冲就地读取
                 parquet_path = os.path.join(DATA_CACHE_DIR, f"{ticker.lower()}_10y.parquet")
                 if os.path.exists(parquet_path):
                     try:
                         df_old = pd.read_parquet(parquet_path)
                         val = float(df_old["Close"].dropna().values[-1])
-                        strl.metric(label=f"标的: {ticker}", value=f"${val:.2f}", delta="📡 大坝冷接入中...", delta_color="off")
+                        strl.metric(label=f"标的: {ticker}", value=f"${val:.2f}", delta="📡 大坝同步中...", delta_color="off")
                     except:
                         strl.caption(f"⏳ {ticker} 正在执行点火并网...")
                 else:
@@ -182,7 +194,6 @@ with strl.sidebar:
     period_choice = strl.radio("📈 K线周期切换:", options=["日K", "周K", "月K"], index=0, horizontal=True)
     strl.markdown("---")
     
-    # 挂载原子级解耦侧边栏高频面板
     atomic_sidebar_prices_gateway(selected_tickers)
     
     if strl.button("🗑️ 物理粉碎死锁缓存 (校准当日日期)", use_container_width=True):
@@ -244,7 +255,7 @@ strl.html(f'<div class="macro-container">{macro_cards_html}</div><style>body {{ 
 strl.markdown("---")
 
 # =====================================================================
-# 🚨 标签页及主大屏 K 线渲染层
+# 🚨 标签页核心大屏
 # =====================================================================
 tab_tech, tab_market, tab_decision = strl.tabs(["📈 动态技术面多显大屏", "🔮 智能体基本面审计长卷", "🦅 M7 主权决策战略操作仓"])
 
