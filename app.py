@@ -155,14 +155,13 @@ strl.markdown("## 📊 实时宏观经济与美国三大股指核心墙")
 # 1. 物理调用宏观与指数引擎打捞数据
 global_cached_macro = {}
 try:
-    # 基础宏观数据打捞
     macro_data = macro_engine.get_macro_indicators()
     global_cached_macro = macro_data 
 except Exception as err:
     strl.error(f"宏观组件异动: {err}")
     macro_data = {}
 
-# 2. 【2026硬核追加】：美国三大股指高并发实时提取与缓存并网机制
+# 2. 美国三大股指高并发实时提取与缓存并网机制
 index_snapshot = {"标普500 (S&P 500)": "N/A", "道琼斯 (Dow 30)": "N/A", "纳斯达克 (Nasdaq)": "N/A"}
 index_map = {"标普500 (S&P 500)": "^GSPC", "道琼斯 (Dow 30)": "^DJI", "纳斯达克 (Nasdaq)": "^IXIC"}
 
@@ -170,7 +169,6 @@ for idx_name, idx_ticker in index_map.items():
     idx_parquet = os.path.join(DATA_CACHE_DIR, f"{idx_ticker.replace('^', '').lower()}_10y.parquet")
     cached_val = None
     
-    # 优先从持久化 Parquet 吞噬 15 分钟内新资产
     if os.path.exists(idx_parquet):
         try:
             df_idx = pd.read_parquet(idx_parquet)
@@ -184,7 +182,6 @@ for idx_name, idx_ticker in index_map.items():
             h_data = t_obj.history(period="1d")
             if not h_data.empty:
                 cached_val = float(h_data["Close"].iloc[-1])
-                # 异步同步10年数据沉入大坝
                 full_idx_df = t_obj.history(period="10y")
                 if not full_idx_df.empty: full_idx_df.to_parquet(idx_parquet)
         except Exception as e:
@@ -195,39 +192,46 @@ for idx_name, idx_ticker in index_map.items():
     if cached_val is not None:
         index_snapshot[idx_name] = f"{cached_val:,.2f}"
 
-# 3. 完美的纯前端全宽无损 Flex 卡片流渲染大天幕（彻底融合三大股指）
+# 3. 🛡️ 【精准净化修补版】：天幕 Flex 容器全矩阵合龙
 if macro_data:
-    macro_html_tiles = ""
+    # 建立统一的容器缓冲区，确保所有卡片100%在同一个弹性流里排布
+    tiles_buffer = []
     
-    # 首先通铺美国三大大盘股指（高亮金黄色左边框，展现统治地位）
+    # 注入美国三大大盘股指（黄金上轨，修复了多余字符导致的文本劫持死锁）
     for name, val in index_snapshot.items():
-        macro_html_tiles += f"""
+        tile_html = f"""
         <div style="flex: 1; min-width: 220px; background-color: #1a2333; padding: 12px 16px; border-radius: 6px; border-top: 3px solid #ffcc00; margin: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.4);">
             <p style="margin: 0 0 6px 0; color: #ffcc00; font-size: 11px; font-weight: bold; font-family: sans-serif;">🇺🇸 {name}</p>
             <p style="margin: 0; color: #ffffff; font-size: 20px; font-weight: bold; font-family: monospace;">{val}</p>
         </div>
         """
+        tiles_buffer.append(tile_html)
         
-    # 其次无缝追加原有的宏观基础指标矩阵
+    # 注入原有的宏观基础指标矩阵
     for name, val in macro_data.items():
         if "新增" in str(val) or "+" in str(val): tile_border_color = "#00FF00"
         elif "符合" in str(val) or "控" in str(val): tile_border_color = "#f0883e"
         else: tile_border_color = "#58a6ff"
         
-        macro_html_tiles += f"""
+        tile_html = f"""
         <div style="flex: 1; min-width: 180px; background-color: #161b22; padding: 12px 16px; border-radius: 6px; border-top: 3px solid {tile_border_color}; margin: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
             <p style="margin: 0 0 6px 0; color: #8b949e; font-size: 11px; font-weight: bold; font-family: sans-serif;">{name}</p>
-            <p style="margin: 0; color: #ffffff; font-size: 17px; font-weight: bold; font-family: monospace; white-space: normal; word-break: break-all;">{val}</p>
+            <p style="margin: 0; color: #ffffff; font-size: 16px; font-weight: bold; font-family: monospace; white-space: normal; word-break: break-all;">{val}</p>
         </div>
         """
+        tiles_buffer.append(tile_html)
     
-    # 轰出天幕全画布
-    strl.markdown(f'<div style="display: flex; flex-wrap: wrap; justify-content: space-between; width: 100%; margin-bottom: 15px;">{macro_html_tiles}</div>', unsafe_allow_html=True)
+    # 🚀 将所有纯净碎片打包进同一个最高主权的 Flex 大外壳，强制物理渲染
+    full_skyline_html = f"""
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; width: 100%; margin-bottom: 10px;">
+        {"".join(tiles_buffer)}
+    </div>
+    """
+    strl.markdown(full_skyline_html, unsafe_allow_html=True)
 else:
     strl.warning("⚠️ 动态宏观资产天幕正在等待网关物理唤醒...")
 
 strl.markdown("---")
-
 # =====================================================================
 # 🚨 降维并网：三大核心标签页点火发射
 # =====================================================================
