@@ -16,10 +16,11 @@ CACHE_DIR = os.path.join(BASE_CACHE_DIR, "data_cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
 
 def load_m7_stock_data_10y_cache(ticker_str: str) -> pd.DataFrame:
-    """10年期自适应 Parquet 仓储中心"""
+    """10年期自适应 Parquet 仓储中心 - 带硬核纯净数据清洗网关"""
     cache_file = os.path.join(CACHE_DIR, f"{ticker_str}_10y.parquet")
     today_str = datetime.date.today().strftime("%Y-%m-%d")
     
+    df_local = None
     if os.path.exists(cache_file):
         file_modify_time = os.path.getmtime(cache_file)
         file_modify_date = datetime.date.fromtimestamp(file_modify_time).strftime("%Y-%m-%d")
@@ -27,27 +28,36 @@ def load_m7_stock_data_10y_cache(ticker_str: str) -> pd.DataFrame:
         if file_modify_date == today_str:
             try:
                 df_local = pd.read_parquet(cache_file)
-                if not df_local.empty:
-                    return df_local
             except Exception as read_err:
                 print(f"⚠️ 本地 Parquet 解析异动: {read_err}")
-        else:
-            print(f"⏳ [M7-PARQUET-STALE] 历史缓存到期，开盘更新中...")
-    else:
-        print(f"📡 [M7-PARQUET-MISS] 正在全量打捞 10 年美股二进制因子...")
+                
+    if df_local is None or df_local.empty:
+        try:
+            print(f"📡 [M7-DOCK] 正在全量打捞 10 年美股二进制因子: {ticker_str}")
+            df_net = yf.download(ticker_str, period="10y", interval="1d", auto_adjust=True)
+            if not df_net.empty:
+                df_net = df_net.dropna(how='all')
+                if isinstance(df_net.columns, pd.MultiIndex):
+                    df_net.columns = df_net.columns.get_level_values(0)
+                df_net.to_parquet(cache_file, engine="pyarrow")
+                df_local = df_net
+        except Exception as net_err:
+            print(f"❌ 10y 数据网关异常: {net_err}")
+            return pd.DataFrame()
 
-    try:
-        df_net = yf.download(ticker_str, period="10y", interval="1d", auto_adjust=True)
-        if df_net.empty: return pd.DataFrame()
-        
-        df_net = df_net.dropna(how='all')
-        if isinstance(df_net.columns, pd.MultiIndex):
-            df_net.columns = df_net.columns.get_level_values(0)
-        df_net.to_parquet(cache_file, engine="pyarrow")
-        return df_net
-    except Exception as net_err:
-        print(f"❌ 10y 数据网关异常: {net_err}")
-        return pd.DataFrame()
+    # 🛡️ 数据清洗过滤，砸碎所有序列污染类型
+    if df_local is not None and not df_local.empty:
+        try:
+            df_clean = df_local.copy()
+            for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
+                if col in df_clean.columns:
+                    df_clean[col] = pd.to_numeric(df_clean[col], errors='coerce').fillna(0.0).astype(float)
+            return df_clean
+        except Exception as clean_err:
+            print(f"❌ 数据流清洗失败: {clean_err}")
+            return df_local
+            
+    return pd.DataFrame()
 
 
 def generate_m7_clean_charts(ticker_str: str, kline_period: str, time_range_mode: str = "6m"):
@@ -63,6 +73,7 @@ def generate_m7_clean_charts(ticker_str: str, kline_period: str, time_range_mode
     if not isinstance(df_base.index, pd.DatetimeIndex):
         df_base.index = pd.to_datetime(df_base.index)
 
+    # 🛡️ 稳健的重采样聚合
     try:
         if kline_period == "周K":
             df_base = df_base.resample('W').agg({
@@ -100,7 +111,7 @@ def generate_m7_clean_charts(ticker_str: str, kline_period: str, time_range_mode
         df_base['D'] = df_base['K'].ewm(com=2, adjust=False).mean()
         df_base['J'] = 3 * df_base['K'] - 2 * df_base['D']
 
-        # 【物理切片提纯核心】：根据用户在前端选中的时间范围，直接截断 DataFrame 逼迫坐标轴合龙
+        # 💡【物理切片提纯】：根据用户在前端选中的时间范围，直接截断 DataFrame 逼迫坐标轴合龙
         last_date = df_base.index[-1]
         if time_range_mode == "1m":
             start_date = last_date - pd.DateOffset(months=1)
@@ -115,15 +126,15 @@ def generate_m7_clean_charts(ticker_str: str, kline_period: str, time_range_mode
         else:  # 默认 6m
             start_date = last_date - pd.DateOffset(months=6)
 
-        # 过滤出当前可视窗口内的数据
+        # 过滤出当前可视窗口内的数据，用于极速动态重组 Y 轴绝对边界
         df_visible = df_base.loc[df_base.index >= start_date]
         if df_visible.empty:
-            df_visible = df_base.tail(30)
+            df_visible = df_base.tail(30) # 灾备兜底
             
         start_init_str = df_visible.index[0].strftime("%Y-%m-%d")
         end_init_str = last_date.strftime("%Y-%m-%d")
 
-        # 计算可视窗口内价格主图的边界
+        # 计算可视窗口内价格主图的绝对最高和绝对最低点
         max_price = float(df_visible['High'].max()) * 1.03
         min_price = float(df_visible['Low'].min()) * 0.97
         if 'Upper' in df_visible.columns and not df_visible['Upper'].isna().all():
@@ -131,16 +142,15 @@ def generate_m7_clean_charts(ticker_str: str, kline_period: str, time_range_mode
         if 'Lower' in df_visible.columns and not df_visible['Lower'].isna().all():
             min_price = min(min_price, float(df_visible['Lower'].min()) * 0.98)
 
-        # 🚀🔥【核心修复点】：用 96% 分位数替代简单的 max() 物理强力抹平历史极端天量噪点！
-        # 这样能确保在 5 年或 Max 的宏观尺度下，绝大多数交易日的成交量柱子依然清晰饱满撑满画布！
-        if len(df_visible) > 10:
-            v_quantile = float(df_visible['Volume'].quantile(0.96))
-            max_volume = v_quantile * 1.15 if v_quantile > 0 else float(df_visible['Volume'].max()) * 1.05
+        # 🚀🔥【终极保固微调点】：废除脆弱的 quantile，采用纯数字真实 max 探测
+        # 且强制加入铁血保底线，只要数据小于等于0，无条件给一个一千万的初始看盘坐标轴，绝对不让图表隐身！
+        raw_max_vol = float(df_visible['Volume'].max())
+        if raw_max_vol > 0:
+            max_volume = raw_max_vol * 1.02
         else:
-            max_volume = float(df_visible['Volume'].max()) * 1.05
-            
-        if max_volume <= 0: 
-            max_volume = 100000
+            # 如果5年大盘没有获取到有效的Volume序列，采用10年总数据的均值充当灾备大坝
+            alt_max = float(df_base['Volume'].max())
+            max_volume = alt_max * 0.50 if alt_max > 0 else 10000000.0
 
         # 计算可视窗口内 MACD 的动态绝对边界
         max_macd = max(float(df_visible['MACD'].max()), float(df_visible['Hist'].max()), float(df_visible['Signal'].max())) * 1.10
@@ -188,20 +198,23 @@ def generate_m7_clean_charts(ticker_str: str, kline_period: str, time_range_mode
             uirevision=time_range_mode
         )
         
-        # X 轴绑定
+        # 🚀 强行焊死当前的 X 轴显示视口区间，不使用全局 matches 反向污染
         breaks_config = [dict(bounds=["sat", "mon"])] if kline_period == "日K" else None
-        fig.update_xaxes(
-            range=[start_init_str, end_init_str],
-            type="date", 
-            rangeslider_visible=False,
-            rangebreaks=breaks_config,
-            showgrid=False,
-            matches='x'
-        )
+        
+        for r in range(1, 5):
+            fig.update_xaxes(
+                range=[start_init_str, end_init_str],
+                type="date", 
+                rangeslider_visible=False,
+                rangebreaks=breaks_config,
+                showgrid=False,
+                row=r, col=1
+            )
 
-        # 强行硬核写入 Y 轴绝对边界
+        # 🚀 由 Python 直接解算出当前周期内的实际真实边界并强制写入布局！
+        # 100% 确保成交量安全计算，全量指标绝对不隐身！
         fig.update_yaxes(range=[min_price, max_price], fixedrange=False, exponentformat="none", tickformat=",", row=1, col=1)
-        fig.update_yaxes(range=[0, max_volume], fixedrange=False, row=2, col=1) # 👈 成交量轴完美抗噪铺满
+        fig.update_yaxes(range=[0, max_volume], fixedrange=False, row=2, col=1) 
         fig.update_yaxes(range=[min_macd, max_macd], fixedrange=False, row=3, col=1)
         fig.update_yaxes(range=[-5, 105], fixedrange=False, row=4, col=1) 
 

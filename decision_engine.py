@@ -23,7 +23,6 @@ API_KEY_POOL = [
     os.environ.get("GOOGLE_API_KEY"), 
 ]
 
-# 🔥 铁血强洗：物理剥离所有 None、空字符串、前后空格、以及不小心带上的单双引号
 active_google_keys = []
 for k in API_KEY_POOL:
     if k:
@@ -39,83 +38,92 @@ if not active_google_keys:
 def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, stock_news, geo_news):
     print(f"🧠 [M7-DECISION-ENGINE] 正在从本地 Parquet 动态计算 [{ticker}] 均线与布林带矩阵...")
     
+    # 确定物理大坝共享数据中心路径
+    PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
+    if os.path.exists("/data"):
+        BASE_CACHE_DIR = "/data"
+    else:
+        BASE_CACHE_DIR = PROJECT_ROOT
+    DATA_CACHE_DIR = os.path.join(BASE_CACHE_DIR, "data_cache")
+
+    # 1. ⚙️【个股核心因子现场量化算力并网】
     latest_market_metrics = {}
     try:
-        # =====================================================================
-        # 💾 【核心微调点】动态并网 /data 持久化物理盘，与前端数据大军无损合龙
-        # =====================================================================
-        PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
-        if os.path.exists("/data"):
-            BASE_CACHE_DIR = "/data"
-        else:
-            BASE_CACHE_DIR = PROJECT_ROOT
-            
-        # 强制对齐共享的物理持久化数据中心
-        DATA_CACHE_DIR = os.path.join(BASE_CACHE_DIR, "data_cache")
         parquet_path = os.path.join(DATA_CACHE_DIR, f"{ticker.lower()}_10y.parquet")
-        
         if os.path.exists(parquet_path):
             df = pd.read_parquet(parquet_path)
             if not df.empty:
-                # 🚀 1. 严格统一大小写映射，确保完全对齐原始 K 线数据列
-                df.columns = [c.capitalize() for c in df.columns] # 映射为 Close, High, Low, Open, Volume
-                
-                # 按日期递增排序，确保滚动窗口计算的时序合规性
+                df.columns = [c.capitalize() for c in df.columns]
                 if "Date" in df.columns:
                     df = df.sort_values("Date")
                 
-                # 🚀 2. 【网关现场量化算力并网】直接在内存中动态现场搓出技术指标！
                 df["Computed_MA5"] = df["Close"].rolling(window=5).mean()
                 df["Computed_MA20"] = df["Close"].rolling(window=20).mean()
-                
-                # 动态现场搓出标准 20 日、2倍标准差布林带
                 df["Computed_Boll_Mid"] = df["Computed_MA20"]
                 df["Computed_Std"] = df["Close"].rolling(window=20).std()
                 df["Computed_Boll_Upper"] = df["Computed_Boll_Mid"] + (df["Computed_Std"] * 2)
                 df["Computed_Boll_Lower"] = df["Computed_Boll_Mid"] - (df["Computed_Std"] * 2)
                 
-                # 动态现场计算基础 EMA 动能差，用于推演 MACD 多头状态
                 ema12 = df["Close"].ewm(span=12, adjust=False).mean()
                 ema26 = df["Close"].ewm(span=26, adjust=False).mean()
                 df["Computed_MACD"] = ema12 - ema26
 
-                # 🚀 3. 剔除尾部可能因为 NaN 导致的死锁，倒序抓取第一行计算完美的真物理快照
                 target_row = None
                 for i in range(1, min(len(df) + 1, 15)):
                     row_candidate = df.iloc[-i]
                     if not pd.isna(row_candidate.get("Computed_MA20")) and float(row_candidate.get("Computed_MA20")) != 0.0:
                         target_row = row_candidate
                         break
-                
                 if target_row is None:
                     target_row = df.iloc[-1]
 
-                # 精准提取物理指标
-                close_price = float(target_row.get("Close", 0))
-                ma5 = float(target_row.get("Computed_MA5", 0))
-                ma20 = float(target_row.get("Computed_MA20", 0))
-                boll_upper = float(target_row.get("Computed_Boll_Upper", 0))
-                boll_mid = float(target_row.get("Computed_Boll_Mid", 0))
-                boll_lower = float(target_row.get("Computed_Boll_Lower", 0))
-                macd_val = float(target_row.get("Computed_MACD", 0))
-
                 latest_market_metrics = {
-                    "最新实际收盘价": round(close_price, 2),
-                    "5_day_MA(5日均线)": round(ma5, 2),
-                    "20_day_MA(20日均线)": round(ma20, 2),
-                    "布林带上轨(Boll_Upper)": round(boll_upper, 2),
-                    "布林带中轨(Boll_Mid)": round(boll_mid, 2),
-                    "布林带下轨(Boll_Lower)": round(boll_lower, 2),
-                    "MACD物理状态": "零轴上方多头放量形态" if macd_val >= 0 else "零轴下方空头修正形态"
+                    "最新实际收盘价": round(float(target_row.get("Close", 0)), 2),
+                    "5_day_MA(5日均线)": round(float(target_row.get("Computed_MA5", 0)), 2),
+                    "20_day_MA(20日均线)": round(float(target_row.get("Computed_MA20", 0)), 2),
+                    "布林带上轨(Boll_Upper)": round(float(target_row.get("Computed_Boll_Upper", 0)), 2),
+                    "布林带中轨(Boll_Mid)": round(float(target_row.get("Computed_Boll_Mid", 0)), 2),
+                    "布林带下轨(Boll_Lower)": round(float(target_row.get("Computed_Boll_Lower", 0)), 2),
+                    "MACD物理状态": "零轴上方多头放量形态" if float(target_row.get("Computed_MACD", 0)) >= 0 else "零轴下方空头修正形态"
                 }
         else:
-            print(f"⚠️ [DECISION-WARN] 本地未定位到持久化盘 {parquet_path}，将启用实盘骨架兜底。")
+            print(f"⚠️ [DECISION-WARN] 本地未定位到资产盘 {parquet_path}")
     except Exception as e:
-        print(f"❌ 动态内存因子算力解算崩溃: {e}")
+        print(f"❌ 动态内存个股因子因子解算崩溃: {e}")
 
-    # =====================================================================
-    # 🧠 Gemini 3.5 深度量化全解包研报投递 (铁血死锁 Prompt 矩阵)
-    # =====================================================================
+    # 2. 🌍【2026战略新增】：大盘主权气象因子数据大清洗捕捞
+    broad_market_metrics = {}
+    index_map = {"标普500 (S&P 500)": "gspc", "道琼斯 (Dow 30)": "dji", "纳斯达克 (Nasdaq)": "ixic"}
+    
+    print("📡 [M7-DECISION-broad] 正在穿透持久化数据大坝合龙三大股指决策因子...")
+    for idx_name, idx_file in index_map.items():
+        try:
+            idx_parquet_path = os.path.join(DATA_CACHE_DIR, f"{idx_file}_10y.parquet")
+            if os.path.exists(idx_parquet_path):
+                df_idx = pd.read_parquet(idx_parquet_path)
+                if not df_idx.empty:
+                    # 洗净由于未收盘导致的 NaN 结尾行，提取最末尾两个真实价格
+                    if "Close" in df_idx.columns:
+                        close_series = df_idx["Close"].dropna().values.flatten()
+                    else:
+                        # 容灾处理 yfinance 多列结构
+                        close_series = df_idx.iloc[:, df_idx.columns.get_level_values(-1) == 'Close'].dropna().values.flatten()
+                    
+                    if len(close_series) >= 2:
+                        curr_close = float(close_series[-1])
+                        prev_close = float(close_series[-2])
+                        idx_change_pct = ((curr_close - prev_close) / prev_close) * 100
+                        
+                        broad_market_metrics[idx_name] = {
+                            "当前最新指数点位": f"{curr_close:,.2f}",
+                            "前一日历史收盘": f"{prev_close:,.2f}",
+                            "大盘日内动态涨跌幅": f"{idx_change_pct:+.2f}%",
+                            "宏观大盘多空情绪": "绿色多头共振" if idx_change_pct > 0 else "红色空头承压"
+                        }
+        except Exception as idx_err:
+            print(f"⚠️ 吞噬大盘因子 [{idx_name}] 异动: {idx_err}")
+
+    # 3. 🧠 Gemini 3.5 深度量化全解包研报投递 (五维一体铁血 Prompt 矩阵)
     gemini_key = random.choice(active_google_keys)
     llm = ChatGoogleGenerativeAI(
         model="gemini-3.5-flash",
@@ -130,30 +138,34 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
     您是 M7-ALPHA 量化主权基金的首席战略宏观与基本面联审专家。请对标的 [{ticker}] 执行未来一周的高规格专业操盘研报输出。
     
     【🔴 铁血深度审计硬核指令】：
-    你的分析过程必须在对应的板块里，显式地提及并深度解读以下输入因子（决不能省略）：
-    1. 必须提及【最新实盘 Parquet 数据】中真实的股价、均线、布林带具体数值，严格根据这些非零的实盘数字执行阻力位/支撑位推演。
-    2. 必须提及【宏观经济基本面】中的核心因子（如美国最新非农就业新增 115K、失业率保持在 4.3% 的就业环境，以及美联储当前的基准利率中枢表现）。
-    3. 必须提及【个股基本面审计长卷 / FMP 离线库】中真实的财报数据（例如营收增幅、净利润增长或云业务等具体核心亮点）。
-    4. 必须结合【M7 高敏双翼舆情雷达】中具体的个股及地缘新闻标题与快照内文进行逻辑合流。
+    你的分析过程必须在对应的模块里，显式地提及并深度解读以下输入因子（决不能省略）：
+    1. 必须提及并综合研判【最新大盘主权气象因子】，将个股与标普500、纳斯达克大盘的多空情绪进行强弱共振推演（判断个股是强于大盘还是随波逐流）。
+    2. 必须提及【最新个股实盘 Parquet 数据】中真实的股价、均线、布林带具体数值，严格根据这些非零的实盘数字执行阻力位/支撑位推演。
+    3. 必须提及【宏观经济基本面】中的核心因子（如美国最新非农就业、CPI、PPI中最新的数据特征，以及当前的利率环境与避险资产动态）。
+    4. 必须提及【个股基本面审计长卷 / FMP 离线库】中真实的财报数据（例如营收增幅、净利润增长或核心主营业务等具体亮点）。
+    5. 必须结合【M7 高敏双翼舆情雷达】中具体的个股及地缘新闻标题与快照内文进行逻辑合流。
     
     【当前战略看盘周期】: {period_choice}
     
-    【数据源一：最新实盘 Parquet 技术面动态解算快照 (绝对保真非零列)】
+    【数据源一：美国三大主权股指大盘气象快照 (保真因子大坝)】
+    {json.dumps(broad_market_metrics, ensure_ascii=False, indent=2)}
+    
+    【数据源二：最新个股实盘 Parquet 技术面动态解算快照】
     {json.dumps(latest_market_metrics, ensure_ascii=False, indent=2)}
     
-    【数据源二：实时宏观经济核心指标面板】
+    【数据源三：实时宏观经济核心指标面板】
     {json.dumps(macro_data, ensure_ascii=False, indent=2)}
     
-    【数据源三：本地落盘的 FMP 核心基本面/财务审计长卷】
+    【数据源四：本地落盘的 FMP 核心基本面/财务审计长卷】
     {audit_text if audit_text else "暂无持久化财务数据。"}
     
-    【数据源四：M7 双流网络高敏新闻舆情雷达】
+    【数据源五：M7 双流网络高敏新闻舆情雷达】
     * 个股关联前沿电报:
     {stock_news_summary}
     * 全球地缘政治动向:
     {geo_news_summary}
     
-    请严格基于上述四维一体的数据，执行高保真逻辑推演，输出必须包含以下四大结构完整的硬核模块（不要缩写，要把数据和逻辑平铺展开）：
+    请严格基于上述五维一体的数据，执行高保真逻辑推演，输出必须包含以下四大结构完整的硬核模块（不要缩写，要把数据和逻辑平铺展开）：
     
     ### 1️⃣ 【核心决策方向与全维数据引证矩阵】
     ### 2️⃣ 【技术面物理状态与核心价格推演】
