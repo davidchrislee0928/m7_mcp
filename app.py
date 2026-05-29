@@ -1,4 +1,4 @@
-# app.py (M7-ALPHA 主界面控制台终端 - 顶层宏观天幕墙·三大股指并网完全体版)
+# app.py (M7-ALPHA 主界面控制台终端 - 顶层宏观天幕墙·三大股指·跨空间时钟一体化完全体)
 import streamlit as strl
 import os
 import sys
@@ -46,50 +46,13 @@ NASDAQ_100_POOL = sorted(list(set([
 strl.set_page_config(page_title="M7-ALPHA 量化多智能体终端", page_icon="📊", layout="wide")
 
 # =====================================================================
-# ⚙️ 控制中心侧边栏 - 双时区终端时钟与 Parquet 价格自愈网关
+# ⚙️ 控制中心侧边栏 - 自选股锁定与资产价格网关 (时钟已移出)
 # =====================================================================
 with strl.sidebar:
     strl.title("⚙️ 控制中心")
     strl.caption("架构层: 工业级单画布四轴强联动合龙内核")
     strl.markdown("---")
     
-    # 🌟 跨空间铁血动态主权时钟 (标准安全网关并网·全自动秒级点跳版)
-    strl.markdown("### 🕒 跨空间铁血时钟")
-    components.html(
-        """
-        <div style="background-color:#161b22; padding:10px; border-radius:6px; border-left:4px solid #00FF00; margin-bottom:10px; font-family:monospace;">
-            <p style="margin:0 0 4px 0; color:#8b949e; font-size:11px;">北京时间 (Asia/Shanghai)</p>
-            <p id="m7-clock-beijing" style="margin:0; color:#58a6ff; font-size:18px; font-weight:bold;">同步中...</p>
-        </div>
-        <div style="background-color:#161b22; padding:10px; border-radius:6px; border-left:4px solid #ff9900; margin-bottom:15px; font-family:monospace;">
-            <p style="margin:0 0 4px 0; color:#8b949e; font-size:11px;">纽约时间 (EST/EDT 自动对齐)</p>
-            <p id="m7-clock-newyork" style="margin:0; color:#f0883e; font-size:18px; font-weight:bold;">同步中...</p>
-        </div>
-
-        <script>
-        function updateM7Clocks() {
-            const now = new Date();
-            const optionsBeijing = {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false};
-            const formatterBeijing = new Intl.DateTimeFormat('zh-CN', optionsBeijing);
-            const partsBeijing = formatterBeijing.formatToParts(now);
-            const bjStr = `${partsBeijing.find(p => p.type === 'year').value}-${partsBeijing.find(p => p.type === 'month').value}-${partsBeijing.find(p => p.type === 'day').value} ${partsBeijing.find(p => p.type === 'hour').value}:${partsBeijing.find(p => p.type === 'minute').value}:${partsBeijing.find(p => p.type === 'second').value}`;
-            document.getElementById('m7-clock-beijing').innerText = bjStr;
-
-            const optionsNewYork = {timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false};
-            const formatterNewYork = new Intl.DateTimeFormat('zh-CN', optionsNewYork);
-            const partsNewYork = formatterNewYork.formatToParts(now);
-            const nyStr = `${partsNewYork.find(p => p.type === 'year').value}-${partsNewYork.find(p => p.type === 'month').value}-${partsNewYork.find(p => p.type === 'day').value} ${partsNewYork.find(p => p.type === 'hour').value}:${partsNewYork.find(p => p.type === 'minute').value}:${partsNewYork.find(p => p.type === 'second').value}`;
-            document.getElementById('m7-clock-newyork').innerText = nyStr;
-        }
-        updateM7Clocks();
-        setInterval(updateM7Clocks, 1000);
-        </script>
-        <style>body { margin: 0; background-color: transparent; overflow: hidden; }</style>
-        """,
-        height=145,
-    )
-    strl.markdown("---")
-
     selected_tickers = strl.multiselect("🔮 请选择要审计的纳指成份股:", options=NASDAQ_100_POOL, default=["GOOGL", "NVDA"])
     period_choice = strl.radio("📈 K线周期切换:", options=["日K", "周K", "月K"], index=0, horizontal=True)
     strl.markdown("---")
@@ -119,8 +82,7 @@ with strl.sidebar:
                         current_price = float(todays_data["Close"].iloc[-1])
                         price_source = "实时并网 (yfinance)"
                         full_df = ticker_obj.history(period="10y")
-                        if not full_df.empty:
-                            full_df.to_parquet(parquet_path)
+                        if not full_df.empty: full_df.to_parquet(parquet_path)
                 except Exception as net_err:
                     print(f"动态抓取最新价失败: {net_err}")
                     if os.path.exists(parquet_path):
@@ -148,11 +110,11 @@ with strl.sidebar:
         strl.rerun()
 
 # =====================================================================
-# 🚀🔥【工业级全新裂变】：宏观天空看盘墙 (物理提权到三大标签页上方)
+# 🚀🔥【核心大并网】：宏观大天幕墙 + 跨空间铁血主权秒级动态时钟 (跨Tab共享)
 # =====================================================================
-strl.markdown("## 📊 实时宏观经济与美国三大股指核心墙")
+strl.markdown("## 📊 M7-ALPHA 宏观经济因子与全球主权时钟大天幕")
 
-# 1. 物理调用宏观与指数引擎打捞数据
+# 1. 物理调用宏观与指数引擎打捞数据 (后端提供高纯度资产，不参与 HTML 脏拼接)
 global_cached_macro = {}
 try:
     macro_data = macro_engine.get_macro_indicators()
@@ -161,11 +123,11 @@ except Exception as err:
     strl.error(f"宏观组件异动: {err}")
     macro_data = {}
 
-# 2. 美国三大股指高并发实时提取与缓存并网机制
-index_snapshot = {"标普500 (S&P 500)": "N/A", "道琼斯 (Dow 30)": "N/A", "纳斯达克 (Nasdaq)": "N/A"}
-index_map = {"标普500 (S&P 500)": "^GSPC", "道琼斯 (Dow 30)": "^DJI", "纳斯达克 (Nasdaq)": "^IXIC"}
+# 2. 美国三大股指高并发实时提取与大坝固化
+index_snapshot = {"GSPC": 0.0, "DJI": 0.0, "IXIC": 0.0}
+index_map = {"GSPC": "^GSPC", "DJI": "^DJI", "IXIC": "^IXIC"}
 
-for idx_name, idx_ticker in index_map.items():
+for idx_key, idx_ticker in index_map.items():
     idx_parquet = os.path.join(DATA_CACHE_DIR, f"{idx_ticker.replace('^', '').lower()}_10y.parquet")
     cached_val = None
     
@@ -190,48 +152,82 @@ for idx_name, idx_ticker in index_map.items():
                 except: pass
                 
     if cached_val is not None:
-        index_snapshot[idx_name] = f"{cached_val:,.2f}"
+        index_snapshot[idx_key] = cached_val
 
-# 3. 🛡️ 【精准净化修补版】：天幕 Flex 容器全矩阵合龙
-if macro_data:
-    # 建立统一的容器缓冲区，确保所有卡片100%在同一个弹性流里排布
-    tiles_buffer = []
-    
-    # 注入美国三大大盘股指（黄金上轨，修复了多余字符导致的文本劫持死锁）
-    for name, val in index_snapshot.items():
-        tile_html = f"""
-        <div style="flex: 1; min-width: 220px; background-color: #1a2333; padding: 12px 16px; border-radius: 6px; border-top: 3px solid #ffcc00; margin: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.4);">
-            <p style="margin: 0 0 6px 0; color: #ffcc00; font-size: 11px; font-weight: bold; font-family: sans-serif;">🇺🇸 {name}</p>
-            <p style="margin: 0; color: #ffffff; font-size: 20px; font-weight: bold; font-family: monospace;">{val}</p>
-        </div>
-        """
-        tiles_buffer.append(tile_html)
+# 3. 🛡️ 【终极防御】：将动态秒级时钟、美股三大股指与宏观面板全部打碎通过 JS 在前端沙盒内完美渲染
+macro_json_str = json.dumps(macro_data, ensure_ascii=False)
+
+components.html(
+    f"""
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; width: 100%; font-family: monospace; gap: 8px;">
         
-    # 注入原有的宏观基础指标矩阵
-    for name, val in macro_data.items():
-        if "新增" in str(val) or "+" in str(val): tile_border_color = "#00FF00"
-        elif "符合" in str(val) or "控" in str(val): tile_border_color = "#f0883e"
-        else: tile_border_color = "#58a6ff"
-        
-        tile_html = f"""
-        <div style="flex: 1; min-width: 180px; background-color: #161b22; padding: 12px 16px; border-radius: 6px; border-top: 3px solid {tile_border_color}; margin: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
-            <p style="margin: 0 0 6px 0; color: #8b949e; font-size: 11px; font-weight: bold; font-family: sans-serif;">{name}</p>
-            <p style="margin: 0; color: #ffffff; font-size: 16px; font-weight: bold; font-family: monospace; white-space: normal; word-break: break-all;">{val}</p>
+        <div style="flex: 1; min-width: 180px; background-color: #161b22; padding: 10px 14px; border-radius: 6px; border-top: 3px solid #00FF00; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <p style="margin: 0 0 4px 0; color: #8b949e; font-size: 11px; font-weight: bold;">北京时间 (SHANGHAI)</p>
+            <p id="sky-clock-bj" style="margin: 0; color: #58a6ff; font-size: 15px; font-weight: bold;">同步中...</p>
         </div>
-        """
-        tiles_buffer.append(tile_html)
-    
-    # 🚀 将所有纯净碎片打包进同一个最高主权的 Flex 大外壳，强制物理渲染
-    full_skyline_html = f"""
-    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; width: 100%; margin-bottom: 10px;">
-        {"".join(tiles_buffer)}
+
+        <div style="flex: 1; min-width: 180px; background-color: #161b22; padding: 10px 14px; border-radius: 6px; border-top: 3px solid #ff9900; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <p style="margin: 0 0 4px 0; color: #8b949e; font-size: 11px; font-weight: bold;">纽约时间 (NEW YORK)</p>
+            <p id="sky-clock-ny" style="margin: 0; color: #f0883e; font-size: 15px; font-weight: bold;">同步中...</p>
+        </div>
+
+        <div style="flex: 1; min-width: 160px; background-color: #1a2333; padding: 10px 14px; border-radius: 6px; border-top: 3px solid #ffcc00; box-shadow: 0 4px 6px rgba(0,0,0,0.4);">
+            <p style="margin: 0 0 4px 0; color: #ffcc00; font-size: 11px; font-weight: bold;">S&P 500 (标普大盘)</p>
+            <p style="margin: 0; color: #ffffff; font-size: 16px; font-weight: bold;">{index_snapshot['GSPC']:,.2f}</p>
+        </div>
+
+        <div style="flex: 1; min-width: 160px; background-color: #1a2333; padding: 10px 14px; border-radius: 6px; border-top: 3px solid #ffcc00; box-shadow: 0 4px 6px rgba(0,0,0,0.4);">
+            <p style="margin: 0 0 4px 0; color: #ffcc00; font-size: 11px; font-weight: bold;">DOW 30 (道指工业)</p>
+            <p style="margin: 0; color: #ffffff; font-size: 16px; font-weight: bold;">{index_snapshot['DJI']:,.2f}</p>
+        </div>
+
+        <div style="flex: 1; min-width: 160px; background-color: #1a2333; padding: 10px 14px; border-radius: 6px; border-top: 3px solid #ffcc00; box-shadow: 0 4px 6px rgba(0,0,0,0.4);">
+            <p style="margin: 0 0 4px 0; color: #ffcc00; font-size: 11px; font-weight: bold;">NASDAQ (纳指综合)</p>
+            <p style="margin: 0; color: #ffffff; font-size: 16px; font-weight: bold;">{index_snapshot['IXIC']:,.2f}</p>
+        </div>
+
+        <div id="macro-tiles-insertion" style="display: flex; flex: 5; gap: 8px; flex-wrap: wrap;"></div>
     </div>
-    """
-    strl.markdown(full_skyline_html, unsafe_allow_html=True)
-else:
-    strl.warning("⚠️ 动态宏观资产天幕正在等待网关物理唤醒...")
+
+    <script>
+    // 1. 现场解算宏观卡片排布
+    const macroData = {macro_json_str};
+    const container = document.getElementById('macro-tiles-insertion');
+    
+    for (const [name, val] of Object.entries(macroData)) {{
+        let borderTopColor = "#58a6ff";
+        if (val.includes("新增") || val.includes("+")) borderTopColor = "#00FF00";
+        else if (val.includes("符合") || val.includes("控")) borderTopColor = "#f0883e";
+        
+        const card = document.createElement('div');
+        card.style = `flex: 1; min-width: 150px; background-color: #161b22; padding: 10px 14px; border-radius: 6px; border-top: 3px solid ${{borderTopColor}}; box-shadow: 0 4px 6px rgba(0,0,0,0.3);`;
+        card.innerHTML = `<p style="margin: 0 0 4px 0; color: #8b949e; font-size: 11px; font-weight: bold;">${{name}}</p>
+                          <p style="margin: 0; color: #ffffff; font-size: 14px; font-weight: bold; white-space: normal; word-break: break-all;">${{val}}</p>`;
+        container.appendChild(card);
+    }}
+
+    // 2. 高频跨时区天幕电子钟心跳引擎
+    function updateSkyClocks() {{
+        const now = new Date();
+        const optBJ = {{timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false}};
+        const partsBJ = new Intl.DateTimeFormat('zh-CN', optBJ).formatToParts(now);
+        document.getElementById('sky-clock-bj').innerText = `${{partsBJ.find(p => p.type === 'year').value}}-${{partsBJ.find(p => p.type === 'month').value}}-${{partsBJ.find(p => p.type === 'day').value}} ${{partsBJ.find(p => p.type === 'hour').value}}:${{partsBJ.find(p => p.type === 'minute').value}}:${{partsBJ.find(p => p.type === 'second').value}}`;
+
+        const optNY = {{timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false}};
+        const partsNY = new Intl.DateTimeFormat('zh-CN', optNY).formatToParts(now);
+        document.getElementById('sky-clock-ny').innerText = `${{partsNY.find(p => p.type === 'year').value}}-${{partsNY.find(p => p.type === 'month').value}}-${{partsNY.find(p => p.type === 'day').value}} ${{partsNY.find(p => p.type === 'hour').value}}:${{partsNY.find(p => p.type === 'minute').value}}:${{partsNY.find(p => p.type === 'second').value}}`;
+    }}
+    
+    updateSkyClocks();
+    setInterval(updateSkyClocks, 1000);
+    </script>
+    <style>body {{ margin: 0; background-color: transparent; overflow: hidden; }}</style>
+    """,
+    height=125,
+)
 
 strl.markdown("---")
+
 # =====================================================================
 # 🚨 降维并网：三大核心标签页点火发射
 # =====================================================================
@@ -241,12 +237,11 @@ global_cached_stock_news = []
 global_cached_geo_news = []
 
 # =====================================================================
-# 📈 标签页 1：动态技术面多显大屏 (首发纳指大盘 K 线图)
+# 📈 标签页 1：动态技术面多显大屏 (首发纳指大盘 K 线长卷)
 # =====================================================================
 with tab_tech:
-    # 🌟 核心突破二：在自选股前，无条件强力铺开纳斯达克综合大盘走势图
-    with strl.expander("📊 【🌍 纳斯达克大盘基准面指数】 核心大周期K线图", expanded=True):
-        # 调用大盘代码 ^IXIC 绘制标准图表
+    # 无条件将纳斯达克综合大盘基准拉到第一位展开冲锋
+    with strl.expander("📊 【🌍 纳斯达克综合指数 (NASDAQ Composite)】 核心大周期走势图", expanded=True):
         fig_nasdaq = generate_m7_clean_charts("^IXIC", period_choice)
         if fig_nasdaq is not None:
             strl.plotly_chart(fig_nasdaq, use_container_width=True, key=f"t_nasdaq_base_{period_choice}")
@@ -291,7 +286,7 @@ with tab_market:
         if strl.session_state["audit_cache"]:
             report_container.markdown(strl.session_state["audit_cache"])
         else:
-            report_container.markdown(f"> 锁定战略主攻目标: **{audit_target}**。持久化物理库暂无记录，请点击点火。")
+            report_container.markdown(f"> 锁定战略主攻目标: **{audit_target}**。持久化物理库暂无记录，请点击点火状态机。")
 
         if strl.button("🚀 启动 AI 多维基本面联审 (点火状态机)", use_container_width=True):
             status_net.warning(f"🔄 正在唤醒本地子节点，审理 [{audit_target}] 中...")
