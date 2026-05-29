@@ -1,4 +1,4 @@
-# app.py (M7-ALPHA 主界面控制台终端 - FMP物理资产无损强吞完全体·持久化并网版)
+# app.py (M7-ALPHA 主界面控制台终端 - 顶层宏观天幕墙·三大股指并网完全体版)
 import streamlit as strl
 import os
 import sys
@@ -7,6 +7,7 @@ from datetime import datetime
 import pytz
 import pandas as pd
 import yfinance as yf
+import streamlit.components.v1 as components
 
 # =====================================================================
 # 🔌 M7-ALPHA 增强型宏观与舆情双向引擎注入点
@@ -23,23 +24,15 @@ from mcp_langgraph_agent import run_m7_audit
 from chart_engine import generate_m7_clean_charts
 
 # =====================================================================
-# 💾 核心缓存根目录重构：物理铁血对接 Hugging Face /data 持久化大坝
+# 💾 核心缓存根目录：物理铁血对接 Hugging Face /data 持久化大坝
 # =====================================================================
 if os.path.exists("/data"):
     BASE_CACHE_DIR = "/data"
-    print("🚀 [M7-APP] 成功探测到云端物理存储大坝！路径硬核并网至: /data")
 else:
     BASE_CACHE_DIR = PROJECT_ROOT
-    print("💻 [M7-APP] 未发现云端物理盘，自动降级为本地开发路径")
 
-# 完璧对齐你的数据缓存盾牌文件夹
 DATA_CACHE_DIR = os.path.join(BASE_CACHE_DIR, "data_cache")
-if not os.path.exists(DATA_CACHE_DIR):
-    os.makedirs(DATA_CACHE_DIR, exist_ok=True)
-    try:
-        os.chmod(DATA_CACHE_DIR, 0o777)
-    except:
-        pass
+os.makedirs(DATA_CACHE_DIR, exist_ok=True)
 
 # 📋 NASDAQ 100 成分股标准备选池
 NASDAQ_100_POOL = sorted(list(set([
@@ -60,19 +53,8 @@ with strl.sidebar:
     strl.caption("架构层: 工业级单画布四轴强联动合龙内核")
     strl.markdown("---")
     
-    # 🌟 核心功能一：双时区主权时钟实时监控
-    local_tz = pytz.timezone('Asia/Shanghai')
-    est_tz = pytz.timezone('America/New_York')
-    
-    now_utc = datetime.now(pytz.utc)
-    local_now = now_utc.astimezone(local_tz)
-    est_now = now_utc.astimezone(est_tz)
-
-    strl.markdown("### 🕒 跨空间精确时钟")
-    import streamlit.components.v1 as components
-
-    # 🚀 放弃 st.markdown 注入，改用官方标准的 components.html 物理物理隔离网关
-    # 这会在容器内部拉起一个合法合规的独立微型画布，100% 免疫 Hugging Face 的沙盒拦截！
+    # 🌟 跨空间铁血动态主权时钟 (标准安全网关并网·全自动秒级点跳版)
+    strl.markdown("### 🕒 跨空间铁血时钟")
     components.html(
         """
         <div style="background-color:#161b22; padding:10px; border-radius:6px; border-left:4px solid #00FF00; margin-bottom:10px; font-family:monospace;">
@@ -87,74 +69,48 @@ with strl.sidebar:
         <script>
         function updateM7Clocks() {
             const now = new Date();
-            
-            // 1. 精准提取北京时间
-            const optionsBeijing = {
-                timeZone: 'Asia/Shanghai',
-                year: 'numeric', month: '2-digit', day: '2-digit',
-                hour: 'numeric', minute: '2-digit', second: '2-digit',
-                hour12: false
-            };
+            const optionsBeijing = {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false};
             const formatterBeijing = new Intl.DateTimeFormat('zh-CN', optionsBeijing);
             const partsBeijing = formatterBeijing.formatToParts(now);
             const bjStr = `${partsBeijing.find(p => p.type === 'year').value}-${partsBeijing.find(p => p.type === 'month').value}-${partsBeijing.find(p => p.type === 'day').value} ${partsBeijing.find(p => p.type === 'hour').value}:${partsBeijing.find(p => p.type === 'minute').value}:${partsBeijing.find(p => p.type === 'second').value}`;
             document.getElementById('m7-clock-beijing').innerText = bjStr;
 
-            // 2. 精准提取纽约时间 (自动兼容 EST 与 EDT 夏令时切换)
-            const optionsNewYork = {
-                timeZone: 'America/New_York',
-                year: 'numeric', month: '2-digit', day: '2-digit',
-                hour: 'numeric', minute: '2-digit', second: '2-digit',
-                hour12: false
-            };
+            const optionsNewYork = {timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false};
             const formatterNewYork = new Intl.DateTimeFormat('zh-CN', optionsNewYork);
             const partsNewYork = formatterNewYork.formatToParts(now);
             const nyStr = `${partsNewYork.find(p => p.type === 'year').value}-${partsNewYork.find(p => p.type === 'month').value}-${partsNewYork.find(p => p.type === 'day').value} ${partsNewYork.find(p => p.type === 'hour').value}:${partsNewYork.find(p => p.type === 'minute').value}:${partsNewYork.find(p => p.type === 'second').value}`;
             document.getElementById('m7-clock-newyork').innerText = nyStr;
         }
-
-        // 🚨 核心点火：首次加载立即合龙，随后每隔 1000 毫秒（1秒）前端全自动无感复写
         updateM7Clocks();
         setInterval(updateM7Clocks, 1000);
         </script>
-        <style>
-            body { margin: 0; background-color: transparent; overflow: hidden; }
-        </style>
+        <style>body { margin: 0; background-color: transparent; overflow: hidden; }</style>
         """,
-        height=145,  # 紧凑型物理高度对齐，确保大屏绝不留白或截断
+        height=145,
     )
     strl.markdown("---")
-    # 纳指成分股与K线周期标准选择器
+
     selected_tickers = strl.multiselect("🔮 请选择要审计的纳指成份股:", options=NASDAQ_100_POOL, default=["GOOGL", "NVDA"])
     period_choice = strl.radio("📈 K线周期切换:", options=["日K", "周K", "月K"], index=0, horizontal=True)
     strl.markdown("---")
     
-    # 🌟 核心功能二：资产价格网关（物理持久化存储大坝强吞）
     if selected_tickers:
         strl.markdown("### 💵 核心资产实时报价")
-        
         for ticker in selected_tickers:
-            # 🔥【精准对齐】：强制将价格 parquet 写入持久化大坝路径
             parquet_path = os.path.join(DATA_CACHE_DIR, f"{ticker.lower()}_10y.parquet")
             current_price = None
             price_source = "未知"
             
-            # 1. 穿透拉取持久化 Parquet 物理库
             if os.path.exists(parquet_path):
                 try:
                     df_local = pd.read_parquet(parquet_path)
                     if not df_local.empty and "Close" in df_local.columns:
-                        latest_row = df_local.iloc[-1]
-                        local_price_time = df_local.index[-1]
-                        
-                        # 核心校准：如果本地最新数据的时间戳距离当前小于 15 分钟，视为最新价直接强吞
-                        if (datetime.now(pytz.utc) - local_price_time.to_pydatetime().astimezone(pytz.utc)).total_seconds() < 900:
-                            current_price = float(latest_row["Close"])
+                        if (datetime.now(pytz.utc) - df_local.index[-1].to_pydatetime().astimezone(pytz.utc)).total_seconds() < 900:
+                            current_price = float(df_local.iloc[-1]["Close"])
                             price_source = "物理大坝 (Parquet)"
                 except Exception as p_err:
-                    print(f"读取持久化 Parquet 缓存异常: {p_err}")
+                    print(f"读取本地 Parquet 缓存异常: {p_err}")
             
-            # 2. 缓存未命中/过期，穿透网络大坝追索最新动态报价
             if current_price is None:
                 try:
                     ticker_obj = yf.Ticker(ticker)
@@ -162,58 +118,136 @@ with strl.sidebar:
                     if not todays_data.empty:
                         current_price = float(todays_data["Close"].iloc[-1])
                         price_source = "实时并网 (yfinance)"
-                        
-                        # 异步触发更新：下载 10 年历史长卷，重新覆盖固化到 /data 持久化盾牌
                         full_df = ticker_obj.history(period="10y")
                         if not full_df.empty:
                             full_df.to_parquet(parquet_path)
                 except Exception as net_err:
                     print(f"动态抓取最新价失败: {net_err}")
-                    # 网络彻底断流时，强行切回持久化 Parquet 物理库的最后一行数据进行容灾兜底
                     if os.path.exists(parquet_path):
                         try:
                             df_local = pd.read_parquet(parquet_path)
                             current_price = float(df_local.iloc[-1]["Close"])
                             price_source = "物理大坝兜底"
-                        except:
-                            pass
+                        except: pass
 
-            # 3. 动态渲染价格面板
             if current_price is not None:
-                strl.metric(
-                    label=f"标的: {ticker} ({price_source})", 
-                    value=f"${current_price:.2f}",
-                    delta=f"美东开盘/盘后联动中"
-                )
+                strl.metric(label=f"标的: {ticker} ({price_source})", value=f"${current_price:.2f}", delta=f"美东盘面联动中")
             else:
                 strl.error(f"❌ {ticker} 报价链路断流")
-                
         strl.markdown("---")
 
     status_net = strl.empty()
     if selected_tickers:
         status_net.info(f"🟢 已锁定 {len(selected_tickers)} 支标的")
         
-    # 🗑️ 铁血碎冰锤按钮
     if strl.button("🗑️ 物理粉碎死锁缓存 (校准当日日期)", use_container_width=True):
         strl.session_state["audit_cache"] = ""
         for key in list(strl.session_state.keys()):
-            if "decision_" in key:
-                del strl.session_state[key]
-        strl.success("内存缓存已释放！重新点火将强制触发底层过期检测机制。")
+            if "decision_" in key: del strl.session_state[key]
+        strl.success("内存缓存已释放！")
         strl.rerun()
+
+# =====================================================================
+# 🚀🔥【工业级全新裂变】：宏观天空看盘墙 (物理提权到三大标签页上方)
+# =====================================================================
+strl.markdown("## 📊 实时宏观经济与美国三大股指核心墙")
+
+# 1. 物理调用宏观与指数引擎打捞数据
+global_cached_macro = {}
+try:
+    # 基础宏观数据打捞
+    macro_data = macro_engine.get_macro_indicators()
+    global_cached_macro = macro_data 
+except Exception as err:
+    strl.error(f"宏观组件异动: {err}")
+    macro_data = {}
+
+# 2. 【2026硬核追加】：美国三大股指高并发实时提取与缓存并网机制
+index_snapshot = {"标普500 (S&P 500)": "N/A", "道琼斯 (Dow 30)": "N/A", "纳斯达克 (Nasdaq)": "N/A"}
+index_map = {"标普500 (S&P 500)": "^GSPC", "道琼斯 (Dow 30)": "^DJI", "纳斯达克 (Nasdaq)": "^IXIC"}
+
+for idx_name, idx_ticker in index_map.items():
+    idx_parquet = os.path.join(DATA_CACHE_DIR, f"{idx_ticker.replace('^', '').lower()}_10y.parquet")
+    cached_val = None
     
-# 🚨 三路标签页并网
+    # 优先从持久化 Parquet 吞噬 15 分钟内新资产
+    if os.path.exists(idx_parquet):
+        try:
+            df_idx = pd.read_parquet(idx_parquet)
+            if not df_idx.empty and (datetime.now(pytz.utc) - df_idx.index[-1].to_pydatetime().astimezone(pytz.utc)).total_seconds() < 900:
+                cached_val = float(df_idx.iloc[-1]["Close"])
+        except: pass
+        
+    if cached_val is None:
+        try:
+            t_obj = yf.Ticker(idx_ticker)
+            h_data = t_obj.history(period="1d")
+            if not h_data.empty:
+                cached_val = float(h_data["Close"].iloc[-1])
+                # 异步同步10年数据沉入大坝
+                full_idx_df = t_obj.history(period="10y")
+                if not full_idx_df.empty: full_idx_df.to_parquet(idx_parquet)
+        except Exception as e:
+            if os.path.exists(idx_parquet):
+                try: cached_val = float(pd.read_parquet(idx_parquet).iloc[-1]["Close"])
+                except: pass
+                
+    if cached_val is not None:
+        index_snapshot[idx_name] = f"{cached_val:,.2f}"
+
+# 3. 完美的纯前端全宽无损 Flex 卡片流渲染大天幕（彻底融合三大股指）
+if macro_data:
+    macro_html_tiles = ""
+    
+    # 首先通铺美国三大大盘股指（高亮金黄色左边框，展现统治地位）
+    for name, val in index_snapshot.items():
+        macro_html_tiles += f"""
+        <div style="flex: 1; min-width: 220px; background-color: #1a2333; padding: 12px 16px; border-radius: 6px; border-top: 3px solid #ffcc00; margin: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.4);">
+            <p style="margin: 0 0 6px 0; color: #ffcc00; font-size: 11px; font-weight: bold; font-family: sans-serif;">🇺🇸 {name}</p>
+            <p style="margin: 0; color: #ffffff; font-size: 20px; font-weight: bold; font-family: monospace;">{val}</p>
+        </div>
+        """
+        
+    # 其次无缝追加原有的宏观基础指标矩阵
+    for name, val in macro_data.items():
+        if "新增" in str(val) or "+" in str(val): tile_border_color = "#00FF00"
+        elif "符合" in str(val) or "控" in str(val): tile_border_color = "#f0883e"
+        else: tile_border_color = "#58a6ff"
+        
+        macro_html_tiles += f"""
+        <div style="flex: 1; min-width: 180px; background-color: #161b22; padding: 12px 16px; border-radius: 6px; border-top: 3px solid {tile_border_color}; margin: 6px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <p style="margin: 0 0 6px 0; color: #8b949e; font-size: 11px; font-weight: bold; font-family: sans-serif;">{name}</p>
+            <p style="margin: 0; color: #ffffff; font-size: 17px; font-weight: bold; font-family: monospace; white-space: normal; word-break: break-all;">{val}</p>
+        </div>
+        """
+    
+    # 轰出天幕全画布
+    strl.markdown(f'<div style="display: flex; flex-wrap: wrap; justify-content: space-between; width: 100%; margin-bottom: 15px;">{macro_html_tiles}</div>', unsafe_allow_html=True)
+else:
+    strl.warning("⚠️ 动态宏观资产天幕正在等待网关物理唤醒...")
+
+strl.markdown("---")
+
+# =====================================================================
+# 🚨 降维并网：三大核心标签页点火发射
+# =====================================================================
 tab_tech, tab_market, tab_decision = strl.tabs(["📈 动态技术面多显大屏", "🔮 智能体基本面审计长卷", "🦅 M7 主权决策战略操作仓"])
 
-global_cached_macro = {}
 global_cached_stock_news = []
 global_cached_geo_news = []
 
 # =====================================================================
-# 📈 标签页 1：动态技术面多显大屏
+# 📈 标签页 1：动态技术面多显大屏 (首发纳指大盘 K 线图)
 # =====================================================================
 with tab_tech:
+    # 🌟 核心突破二：在自选股前，无条件强力铺开纳斯达克综合大盘走势图
+    with strl.expander("📊 【🌍 纳斯达克大盘基准面指数】 核心大周期K线图", expanded=True):
+        # 调用大盘代码 ^IXIC 绘制标准图表
+        fig_nasdaq = generate_m7_clean_charts("^IXIC", period_choice)
+        if fig_nasdaq is not None:
+            strl.plotly_chart(fig_nasdaq, use_container_width=True, key=f"t_nasdaq_base_{period_choice}")
+            
+    strl.markdown("#### 🏢 标的成份股技术面板")
     if not selected_tickers:
         strl.info("💡 提示：请在左侧控制中心选择标的。")
     else:
@@ -225,67 +259,16 @@ with tab_tech:
 
 
 # =====================================================================
-# 🔮 标签页 2：智能体基本面审计长卷 (纯前端 Flex 容器重构 · 彻底封杀截断)
+# 🔮 标签页 2：智能体基本面审计长卷
 # =====================================================================
 with tab_market:
     if not selected_tickers:
         strl.info("💡 提示：请在左侧控制中心锁定股票。")
     else:
-        strl.markdown("### 📈 实时宏观经济核心指标")
-        
-        # 1. 物理调用原有引擎打捞数据
-        try:
-            macro_data = macro_engine.get_macro_indicators()
-            global_cached_macro = macro_data 
-        except Exception as err:
-            strl.error(f"宏观组件异常: {err}")
-            macro_data = {}
-            
-        if macro_data:
-            macro_html_tiles = ""
-            for name, val in macro_data.items():
-                if "新增" in str(val) or "+" in str(val):
-                    tile_border_color = "#00FF00"
-                elif "符合" in str(val) or "控" in str(val):
-                    tile_border_color = "#f0883e"
-                else:
-                    tile_border_color = "#58a6ff"
-                
-                macro_html_tiles += f"""
-                <div style="
-                    flex: 1; 
-                    min-width: 180px; 
-                    background-color: #161b22; 
-                    padding: 12px 16px; 
-                    border-radius: 6px; 
-                    border-top: 3px solid {tile_border_color}; 
-                    margin: 6px;
-                    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-                ">
-                    <p style="margin: 0 0 6px 0; color: #8b949e; font-size: 12px; font-weight: bold; font-family: sans-serif;">{name}</p>
-                    <p style="margin: 0; color: #ffffff; font-size: 18px; font-weight: bold; font-family: monospace; white-space: normal; word-break: break-all;">{val}</p>
-                </div>
-                """
-            
-            strl.markdown(
-                f"""
-                <div style="display: flex; flex-wrap: wrap; justify-content: space-between; width: 100%; margin-bottom: 10px;">
-                    {macro_html_tiles}
-                </div>
-                """, 
-                unsafe_allow_html=True
-            )
-        else:
-            strl.warning("⚠️ 动态宏观账本空置，等待网关唤醒中...")
-
-        strl.markdown("---")
         strl.markdown("### 📝 多智能体基本面联审研报")
-        
         audit_target = strl.selectbox("🎯 请选择本次点火 AI 联审的核心目标:", options=selected_tickers)
         
         report_container = strl.empty()
-        
-        # 🔥【精准对齐】：将研报 JSON 缓存路径死死锁进 /data 持久化盘中
         local_json_path = os.path.join(DATA_CACHE_DIR, f"fmp_cache_{audit_target}.json")
         has_local_json = os.path.exists(local_json_path)
         
@@ -304,7 +287,7 @@ with tab_market:
         if strl.session_state["audit_cache"]:
             report_container.markdown(strl.session_state["audit_cache"])
         else:
-            report_container.markdown(f"> 锁定战略主攻目标: **{audit_target}**。持久化物理库暂无记录，点击下方按钮激活状态机。")
+            report_container.markdown(f"> 锁定战略主攻目标: **{audit_target}**。持久化物理库暂无记录，请点击点火。")
 
         if strl.button("🚀 启动 AI 多维基本面联审 (点火状态机)", use_container_width=True):
             status_net.warning(f"🔄 正在唤醒本地子节点，审理 [{audit_target}] 中...")
@@ -317,20 +300,13 @@ with tab_market:
                     strl.session_state["audit_cache"] = audit_result 
                     
                     try:
-                        structured_output = {
-                            "ticker": audit_target,
-                            "period": period_choice,
-                            "audit_report": audit_result
-                        }
-                        # 🔥【精准对齐】：将生成的研报资产牢牢砸进物理磁盘
+                        structured_output = {"ticker": audit_target, "period": period_choice, "audit_report": audit_result}
                         with open(local_json_path, "w", encoding="utf-8") as wf:
                             json.dump(structured_output, wf, ensure_ascii=False, indent=2)
-                    except Exception as w_err:
-                        print(f"回填写入持久化资产失败: {w_err}")
+                    except Exception as w_err: print(f"回填写入持久化资产失败: {w_err}")
                 else:
                     status_net.error("❌ 审计断流")
-            except Exception as ui_err:
-                status_net.error(f"❌ 运行期突发崩溃: {ui_err}")
+            except Exception as ui_err: status_net.error(f"❌ 运行期突发崩溃: {ui_err}")
 
         strl.markdown("---")
         strl.markdown(f"### 📰 M7 高敏舆情雷达监控舱")
@@ -340,32 +316,27 @@ with tab_market:
             stock_news_list = news_engine.get_latest_news(query_type="stock", topic=audit_target, limit=5)
             global_cached_stock_news = stock_news_list 
             for item in stock_news_list:
-                with strl.expander(f"📌 {item['title']}", expanded=False):
-                    strl.markdown(item['summary'])
+                with strl.expander(f"📌 {item['title']}", expanded=False): strl.markdown(item['summary'])
         with news_col2:
             strl.subheader("🌍 全球地缘政治前沿动向")
             geo_news_list = news_engine.get_latest_news(query_type="geopolitics", limit=5)
             global_cached_geo_news = geo_news_list 
             for item in geo_news_list:
-                with strl.expander(f"⚠️ {item['title']}", expanded=False):
-                    strl.markdown(item['summary'])
+                with strl.expander(f"⚠️ {item['title']}", expanded=False): strl.markdown(item['summary'])
 
 # =====================================================================
-# 🦅 标签页 3：M7 主权决策战略操作仓 (100% 完整物理穿透吞噬逻辑)
+# 🦅 标签页 3：M7 主权决策战略操作仓
 # =====================================================================
 with tab_decision:
     strl.markdown(f"### 🦅 Gemini 3.5 多维因子自适应跨空间终极决策建议")
-    
     decision_target = audit_target if 'audit_target' in locals() else (selected_tickers[0] if selected_tickers else None)
     
     if not decision_target:
-        strl.info("⏳ 正在等待数据链合龙... 请确保在左侧控制中心至少选择了一支股票。")
+        strl.info("⏳ 正在等待数据链合龙... 请选择标的。")
     else:
-        # 🔥【精准对齐】：决策端硬核强刷 /data 持久化盘下的 json 历史记录
         local_json_file = os.path.join(DATA_CACHE_DIR, f"fmp_cache_{decision_target}.json")
         is_fundamental_ready = bool(strl.session_state.get("audit_cache")) or os.path.exists(local_json_file)
 
-        # 动态状态通关灯排布
         d_col1, d_col2, d_col3, d_col4 = strl.columns(4)
         d_col1.markdown(f"🎯 核心标的: **{decision_target}**")
         d_col2.markdown(f"📈 宏观因子墙: <span style='color:#00FF00;'>🟢 已就绪</span>", unsafe_allow_html=True)
@@ -373,46 +344,30 @@ with tab_decision:
         if is_fundamental_ready:
             d_col3.markdown(f"📝 FMP基本面: <span style='color:#00FF00; font-weight:bold;'>🟢 已读取持久化物理库</span>", unsafe_allow_html=True)
         else:
-            d_col3.markdown(f"📝 FMP基本面: <span style='color:#FF9900;'>⚠️ 未发现本地物理库，将常识推理</span>", unsafe_allow_html=True)
+            d_col3.markdown(f"📝 FMP基本面: <span style='color:#FF9900;'>⚠️ 未发现本地物理库</span>", unsafe_allow_html=True)
             
         d_col4.markdown(f"📰 MCP舆情流: <span style='color:#00FF00;'>🟢 已双向并网</span>", unsafe_allow_html=True)
         
         strl.markdown("---")
         
         decision_cache_key = f"decision_{decision_target}_{period_choice}"
-        if decision_cache_key not in strl.session_state:
-            strl.session_state[decision_cache_key] = ""
+        if decision_cache_key not in strl.session_state: strl.session_state[decision_cache_key] = ""
             
         if strl.button(f"🔥 点火决策状态机 -> 下达 [{decision_target}] 操盘战略", use_container_width=True):
-            with strl.spinner(f"🦅 M7 首席战略家 Gemini 正在对四轴联动因子执行高维脱水提纯..."):
-                
+            with strl.spinner(f"🦅 M7 首席战略家 Gemini 正在执行高维脱水提纯..."):
                 final_audit_content = strl.session_state.get("audit_cache", "")
                 
-                # 🔥【物理穿透自愈核心】：无条件穿透去强吞持久化大坝盘下的原始财报数据
                 if not final_audit_content or "💡" not in final_audit_content:
                     if os.path.exists(local_json_file):
                         try:
                             with open(local_json_file, "r", encoding="utf-8") as f:
                                 local_json_data = json.load(f)
-                                if isinstance(local_json_data, dict) and "audit_report" in local_json_data:
-                                    final_audit_content = local_json_data["audit_report"]
-                                else:
-                                    final_audit_content = json.dumps(local_json_data, ensure_ascii=False, indent=2)
-                                
-                                strl.session_state["audit_cache"] = f"💡 [M7-EMERGENCY-DOCK] 成功吞噬持久化大坝 FMP 原始财报数据"
-                        except Exception as file_err:
-                            final_audit_content = f"强吞持久化 FMP 资产发生异常: {str(file_err)}"
+                                final_audit_content = local_json_data.get("audit_report", json.dumps(local_json_data, ensure_ascii=False))
+                                strl.session_state["audit_cache"] = f"💡 [M7-EMERGENCY-DOCK] 成功吞噬持久化大坝"
+                        except Exception as file_err: final_audit_content = str(file_err)
 
                 current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S (UTC+8)")
-                
-                time_anchor_instruction = (
-                    f"【M7系统高优先级时钟注入】\n"
-                    f"当前最新的绝对操作时间为: {current_time_str}。\n"
-                    f"请你在最终输出的战略研报头部的『发布时间』一栏中，必须精确填写这个时间（{current_time_str}）。"
-                    f"严禁参考或沿用任何历史缓存或原始财报文件中的旧日期作为报告发布日期！\n"
-                    f"==================================================\n\n"
-                )
-                
+                time_anchor_instruction = f"【M7系统高优先级时钟注入】\n当前时间: {current_time_str}。\n==================================================\n\n"
                 final_audit_content_with_time = time_anchor_instruction + final_audit_content
 
                 macro_input = global_cached_macro if global_cached_macro else macro_engine.get_macro_indicators()
@@ -420,29 +375,20 @@ with tab_decision:
                 geo_news_input = global_cached_geo_news if global_cached_geo_news else news_engine.get_latest_news(query_type="geopolitics", limit=5)
                 
                 raw_decision_report = decision_engine.generate_m7_weekly_decision(
-                    ticker=decision_target,
-                    period_choice=period_choice,
-                    macro_data=macro_input,
-                    audit_text=final_audit_content_with_time,
-                    stock_news=stock_news_input,
-                    geo_news=geo_news_input
+                    ticker=decision_target, period_choice=period_choice, macro_data=macro_input,
+                    audit_text=final_audit_content_with_time, stock_news=stock_news_input, geo_news=geo_news_input
                 )
                 strl.session_state[decision_cache_key] = raw_decision_report
                 
-        # =====================================================================
-        # 🏁 纯净 Markdown 清洗渲染器
-        # =====================================================================
         if strl.session_state[decision_cache_key]:
             strl.markdown('<div style="background-color:#111625; padding:12px; border-radius:8px; border-left: 5px solid #00FF00; margin-bottom: 15px;"><h4 style="color:#00FF00; margin-top:0px; margin-bottom:0px; font-family: monospace;">🦅 M7 量化主权研报体系 · 决策流完美合龙</h4></div>', unsafe_allow_html=True)
-            
             raw_report = strl.session_state[decision_cache_key]
             clean_text = ""
             
             if isinstance(raw_report, list) and len(raw_report) > 0:
                 node = raw_report[0]
                 clean_text = node.text if hasattr(node, "text") else (node.get("text", str(node)) if isinstance(node, dict) else str(node))
-            elif isinstance(raw_report, dict):
-                clean_text = raw_report.get("text", raw_report.get("content", str(raw_report)))
+            elif isinstance(raw_report, dict): clean_text = raw_report.get("text", raw_report.get("content", str(raw_report)))
             elif isinstance(raw_report, str):
                 if raw_report.strip().startswith("[") or raw_report.strip().startswith("{"):
                     try:
@@ -452,7 +398,5 @@ with tab_decision:
                             if s != -1 and e != -1: clean_text = raw_report[s:e].replace("\\n", "\n")
                     except: pass
                 if not clean_text: clean_text = raw_report
-            else:
-                clean_text = str(raw_report)
-                
+            else: clean_text = str(raw_report)
             strl.markdown(clean_text)
