@@ -68,7 +68,7 @@ with strl.sidebar:
     local_now = now_utc.astimezone(local_tz)
     est_now = now_utc.astimezone(est_tz)
 
-    strl.markdown("### 🕒 跨空间铁血时钟")
+    strl.markdown("### 🕒 跨空间精确时钟")
     strl.markdown(
         f"""
         <div style="background-color:#161b22; padding:10px; border-radius:6px; border-left:4px solid #00FF00; margin-bottom:10px;">
