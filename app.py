@@ -50,12 +50,17 @@ strl.set_page_config(page_title="M7-ALPHA 量化多智能体终端", page_icon="
 # =====================================================================
 title_col, clock_col = strl.columns([6, 4])
 
+# =====================================================================
+# 🚀🔥【布局提权改版】：大标题区与时钟区分裂，右上角采用 100% 安全新规 st.html 网关避雷
+# =====================================================================
+title_col, clock_col = strl.columns([6, 4])
+
 with title_col:
     strl.markdown("# 📊 M7-ALPHA 美国宏观经济指标")
 
 with clock_col:
-    # 将铁血时钟独立在右上角拉起一个微型画布，秒级点跳，绝不挤占指标墙空间
-    components.html(
+    # 🌟 终极换防：使用 100% 官方正统放行的 st.html，彻底粉碎 srcdoc 传参导致的 TypeError 熔断
+    strl.html(
         """
         <div style="display: flex; gap: 8px; justify-content: flex-end; font-family: monospace;">
             <div style="background-color:#161b22; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #00FF00; min-width: 165px;">
@@ -82,10 +87,8 @@ with clock_col:
         setInterval(updateTopClocks, 1000);
         </script>
         <style>body { margin: 0; background-color: transparent; overflow: hidden; }</style>
-        """,
-        height=45,
+        """
     )
-
 # =====================================================================
 # ⚙️ 控制中心侧边栏 - 自选股锁定与资产价格网关
 # =====================================================================
