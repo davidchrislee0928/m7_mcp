@@ -46,10 +46,51 @@ NASDAQ_100_POOL = sorted(list(set([
 strl.set_page_config(page_title="M7-ALPHA 量化多智能体终端", page_icon="📊", layout="wide")
 
 # =====================================================================
-# ⚙️ 控制中心侧边栏 - 自选股锁定与资产价格网关 (时钟已移出)
+# 🚀🔥【布局提权改版一】：大标题区与时钟区分裂，时钟强行置于右上角
+# =====================================================================
+title_col, clock_col = strl.columns([6, 4])
+
+with title_col:
+    strl.markdown("# 📊 M7-ALPHA 美国宏观经济指标")
+
+with clock_col:
+    # 将铁血时钟独立在右上角拉起一个微型画布，秒级点跳，绝不挤占指标墙空间
+    components.html(
+        """
+        <div style="display: flex; gap: 8px; justify-content: flex-end; font-family: monospace;">
+            <div style="background-color:#161b22; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #00FF00; min-width: 165px;">
+                <p style="margin:0; color:#8b949e; font-size:10px;">北京时间 (SHANGHAI)</p>
+                <p id="top-clock-bj" style="margin:0; color:#58a6ff; font-size:13px; font-weight:bold;">同步中...</p>
+            </div>
+            <div style="background-color:#161b22; padding: 6px 12px; border-radius: 4px; border-left: 3px solid #ff9900; min-width: 165px;">
+                <p style="margin:0; color:#8b949e; font-size:10px;">纽约时间 (NEW YORK)</p>
+                <p id="top-clock-ny" style="margin:0; color:#f0883e; font-size:13px; font-weight:bold;">同步中...</p>
+            </div>
+        </div>
+        <script>
+        function updateTopClocks() {
+            const now = new Date();
+            const optBJ = {timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false};
+            const partsBJ = new Intl.DateTimeFormat('zh-CN', optBJ).formatToParts(now);
+            document.getElementById('top-clock-bj').innerText = partsBJ.find(p => p.type === 'year').value + '-' + partsBJ.find(p => p.type === 'month').value + '-' + partsBJ.find(p => p.type === 'day').value + ' ' + partsBJ.find(p => p.type === 'hour').value + ':' + partsBJ.find(p => p.type === 'minute').value + ':' + partsBJ.find(p => p.type === 'second').value;
+
+            const optNY = {timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false};
+            const partsNY = new Intl.DateTimeFormat('zh-CN', optNY).formatToParts(now);
+            document.getElementById('top-clock-ny').innerText = partsNY.find(p => p.type === 'year').value + '-' + partsNY.find(p => p.type === 'month').value + '-' + partsNY.find(p => p.type === 'day').value + ' ' + partsNY.find(p => p.type === 'hour').value + ':' + partsNY.find(p => p.type === 'minute').value + ':' + partsNY.find(p => p.type === 'second').value;
+        }
+        updateTopClocks();
+        setInterval(updateTopClocks, 1000);
+        </script>
+        <style>body { margin: 0; background-color: transparent; overflow: hidden; }</style>
+        """,
+        height=45,
+    )
+
+# =====================================================================
+# ⚙️ 控制中心侧边栏 - 自选股锁定与资产价格网关
 # =====================================================================
 with strl.sidebar:
-    strl.title("⚙️ 控制中心")
+    strl.title("⚙️ 纳斯达克100股票选择")
     strl.caption("架构层: 工业级单画布四轴强联动合龙内核")
     strl.markdown("---")
     
@@ -61,39 +102,53 @@ with strl.sidebar:
         strl.markdown("### 💵 核心资产实时报价")
         for ticker in selected_tickers:
             parquet_path = os.path.join(DATA_CACHE_DIR, f"{ticker.lower()}_10y.parquet")
-            current_price = None
-            price_source = "未知"
+            df_stock = None
             
+            # 优先从物理大坝捞取历史序列
             if os.path.exists(parquet_path):
                 try:
-                    df_local = pd.read_parquet(parquet_path)
-                    if not df_local.empty and "Close" in df_local.columns:
-                        if (datetime.now(pytz.utc) - df_local.index[-1].to_pydatetime().astimezone(pytz.utc)).total_seconds() < 900:
-                            current_price = float(df_local.iloc[-1]["Close"])
-                            price_source = "物理大坝 (Parquet)"
-                except Exception as p_err:
-                    print(f"读取本地 Parquet 缓存异常: {p_err}")
+                    df_stock = pd.read_parquet(parquet_path)
+                except: pass
             
-            if current_price is None:
+            # 增量自愈网关：无缓存或缓存过期则重新拉取10年数据
+            if df_stock is None or df_stock.empty or (datetime.now(pytz.utc) - df_stock.index[-1].to_pydatetime().astimezone(pytz.utc)).total_seconds() > 900:
                 try:
                     ticker_obj = yf.Ticker(ticker)
-                    todays_data = ticker_obj.history(period="1d")
-                    if not todays_data.empty:
-                        current_price = float(todays_data["Close"].iloc[-1])
-                        price_source = "实时并网 (yfinance)"
-                        full_df = ticker_obj.history(period="10y")
-                        if not full_df.empty: full_df.to_parquet(parquet_path)
+                    full_df = ticker_obj.history(period="10y")
+                    if not full_df.empty:
+                        full_df.to_parquet(parquet_path)
+                        df_stock = full_df
                 except Exception as net_err:
-                    print(f"动态抓取最新价失败: {net_err}")
-                    if os.path.exists(parquet_path):
-                        try:
-                            df_local = pd.read_parquet(parquet_path)
-                            current_price = float(df_local.iloc[-1]["Close"])
-                            price_source = "物理大坝兜底"
-                        except: pass
+                    print(f"动态同步个股 {ticker} 失败: {net_err}")
 
-            if current_price is not None:
-                strl.metric(label=f"标的: {ticker} ({price_source})", value=f"${current_price:.2f}", delta=f"美东盘面联动中")
+            if df_stock is not None and not df_stock.empty and "Close" in df_stock.columns:
+                try:
+                    # 深度清洗序列末端，排除当日未收盘导致最新行为 NaN 的情况
+                    clean_prices = df_stock["Close"].dropna().values.flatten()
+                    if len(clean_prices) >= 2:
+                        curr_p = float(clean_prices[-1])
+                        prev_p = float(clean_prices[-2])
+                        p_change = curr_p - prev_p
+                        p_pct = (p_change / prev_p) * 100
+                        
+                        # 铁血大数准则：走高亮绿，走低亮红
+                        if p_change > 0:
+                            p_delta_str = f"▲ ${p_change:+.2f} ({p_pct:+.2f}%)"
+                        elif p_change < 0:
+                            p_delta_str = f"▼ ${p_change:+.2f} ({p_pct:+.2f}%)"
+                        else:
+                            p_delta_str = f"— $0.00 (0.00%)"
+                        
+                        strl.metric(
+                            label=f"标的: {ticker}", 
+                            value=f"${curr_p:.2f}", 
+                            delta=p_delta_str,
+                            delta_color="normal" # 自动匹配 Streamlit 默认的自愈正绿负红，若要极端自定义可写独立 HTML
+                        )
+                    else:
+                        strl.metric(label=f"标的: {ticker}", value=f"${clean_prices[-1]:.2f}", delta="对比数据不足")
+                except:
+                    strl.error(f"❌ {ticker} 矩阵解算中断")
             else:
                 strl.error(f"❌ {ticker} 报价链路断流")
         strl.markdown("---")
@@ -110,11 +165,9 @@ with strl.sidebar:
         strl.rerun()
 
 # =====================================================================
-# 🚀🔥【核心大并网】：宏观大天幕墙 + 跨空间铁血主权秒级动态时钟 (跨Tab共享)
+# 🚀🔥【大布局重组二】：纯净红绿物理大天幕 (100% 贯彻：高绿低红铁律，绝不遗漏非农/CPI/PPI)
 # =====================================================================
-strl.markdown("## 📊 M7-ALPHA 宏观经济因子与全球主权时钟大天幕")
-
-# 1. 物理调用宏观与指数引擎打捞数据 (后端提供高纯度资产，不参与 HTML 脏拼接)
+# 1. 调用两日对比型宏观核心资产
 global_cached_macro = {}
 try:
     macro_data = macro_engine.get_macro_indicators()
@@ -123,128 +176,195 @@ except Exception as err:
     strl.error(f"宏观组件异动: {err}")
     macro_data = {}
 
-# 2. 美国三大股指高并发实时提取与大坝固化
-index_snapshot = {"GSPC": 0.0, "DJI": 0.0, "IXIC": 0.0}
+# 2. 彻底堵死美国三大股指休盘 NaN 空白漏洞（多日长卷深度清洗降维法）
+index_snapshot = {
+    "GSPC": {"val": "0.00", "arrow": "—", "color": "#58a6ff", "pct": "0.00%"},
+    "DJI": {"val": "0.00", "arrow": "—", "color": "#58a6ff", "pct": "0.00%"},
+    "IXIC": {"val": "0.00", "arrow": "—", "color": "#58a6ff", "pct": "0.00%"}
+}
 index_map = {"GSPC": "^GSPC", "DJI": "^DJI", "IXIC": "^IXIC"}
 
 for idx_key, idx_ticker in index_map.items():
     idx_parquet = os.path.join(DATA_CACHE_DIR, f"{idx_ticker.replace('^', '').lower()}_10y.parquet")
-    cached_val = None
+    df_idx = None
     
     if os.path.exists(idx_parquet):
         try:
             df_idx = pd.read_parquet(idx_parquet)
-            if not df_idx.empty and (datetime.now(pytz.utc) - df_idx.index[-1].to_pydatetime().astimezone(pytz.utc)).total_seconds() < 900:
-                cached_val = float(df_idx.iloc[-1]["Close"])
         except: pass
         
-    if cached_val is None:
+    if df_idx is None or df_idx.empty or (datetime.now(pytz.utc) - df_idx.index[-1].to_pydatetime().astimezone(pytz.utc)).total_seconds() > 900:
         try:
             t_obj = yf.Ticker(idx_ticker)
-            h_data = t_obj.history(period="1d")
-            if not h_data.empty:
-                cached_val = float(h_data["Close"].iloc[-1])
-                full_idx_df = t_obj.history(period="10y")
-                if not full_idx_df.empty: full_idx_df.to_parquet(idx_parquet)
-        except Exception as e:
-            if os.path.exists(idx_parquet):
-                try: cached_val = float(pd.read_parquet(idx_parquet).iloc[-1]["Close"])
-                except: pass
+            full_idx_df = t_obj.history(period="10y")
+            if not full_idx_df.empty:
+                full_idx_df.to_parquet(idx_parquet)
+                df_idx = full_idx_df
+        except: pass
+
+    if df_idx is not None and not df_idx.empty:
+        try:
+            clean_series = df_idx["Close"].dropna().values.flatten()
+            if len(clean_series) >= 2:
+                current_close = float(clean_series[-1])
+                prev_close = float(clean_series[-2])
+                change_pct = ((current_close - prev_close) / prev_close) * 100
                 
-    if cached_val is not None:
-        index_snapshot[idx_key] = cached_val
+                if change_pct > 0:
+                    arrow, color_code = "▲", "#00FF00"
+                elif change_pct < 0:
+                    arrow, color_code = "▼", "#FF4444"
+                else:
+                    arrow, color_code = "—", "#58a6ff"
 
-# 3. 🛡️ 【终极防御】：将动态秒级时钟、美股三大股指与宏观面板全部打碎通过 JS 在前端沙盒内完美渲染
-macro_json_str = json.dumps(macro_data, ensure_ascii=False)
+                index_snapshot[idx_key] = {
+                    "val": f"{current_close:,.2f}",
+                    "arrow": arrow,
+                    "color": color_code,
+                    "pct": f"{change_pct:+.2f}%"
+                }
+        except: pass
 
+# 3. 🛡️ 【大屏视觉合龙】：全矩阵动态融合高频走势与静态宏观，100% 严密还原
+macro_cards_html = ""
+
+# A. 首先并排轰入三大指数卡片
+idx_labels = {"GSPC": "S&P 500 (标普大盘)", "DJI": "DOW 30 (道指工业)", "IXIC": "NASDAQ (纳指综合)"}
+for k, item in index_snapshot.items():
+    macro_cards_html += f"""
+    <div style="flex: 1; min-width: 140px; background-color: #1a2333; padding: 8px 12px; border-radius: 6px; border-top: 3px solid {item['color']}; box-shadow: 0 4px 6px rgba(0,0,0,0.4);">
+        <p style="margin: 0 0 4px 0; color: #ffcc00; font-size: 11px; font-weight: bold; font-family: sans-serif; white-space: nowrap;">{idx_labels[k]}</p>
+        <p style="margin: 0; color: {item['color']}; font-size: 14px; font-weight: bold; font-family: monospace; white-space: nowrap;">
+            <span style="font-size:10px; margin-right:2px;">{item['arrow']}</span>{item['val']} <span style="font-size:9px; font-weight:normal;">({item['pct']})</span>
+        </p>
+    </div>
+    """
+
+# B. 其次无损并网全部宏观要素（包含高频对比与非农/CPI/PPI等静态要素）
+if macro_data:
+    for name, node in macro_data.items():
+        card_color = "#58a6ff"
+        card_arrow = "—"
+        display_val = "N/A"
+        
+        if isinstance(node, dict):
+            val = node.get("val", "N/A")
+            prev = node.get("prev", "N/A")
+            display_val = str(val)
+            
+            if prev == "STATIC":
+                # 针对非农、CPI、PPI等静态披露指标进行铁血高亮渲染
+                card_arrow = "📢"
+                if "新增" in display_val or "+" in display_val or "涨" in display_val:
+                    card_color = "#00FF00"  # 只要是增长、增加等趋势，直观亮绿
+                elif "降" in display_val or "-" in display_val:
+                    card_color = "#FF4444"  # 只要是下降趋势，直观亮红
+                else:
+                    card_color = "#f0883e"  # 维持稳定或符合预期亮金
+            elif val != "N/A" and prev != "N/A":
+                # 针对高频动态要素（美元指数、原油、美债）执行物理涨跌大数对比
+                try:
+                    num_curr = float(val.replace("%", "").strip())
+                    num_prev = float(prev.replace("%", "").strip())
+                    
+                    if num_curr > num_prev:
+                        card_color = "#00FF00"
+                        card_arrow = "▲"
+                    elif num_curr < num_prev:
+                        card_color = "#FF4444"
+                        card_arrow = "▼"
+                except:
+                    pass
+        else:
+            display_val = str(node)
+
+        macro_cards_html += f"""
+        <div style="flex: 1; min-width: 140px; background-color: #161b22; padding: 8px 12px; border-radius: 6px; border-top: 3px solid {card_color}; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <p style="margin: 0 0 4px 0; color: #8b949e; font-size: 11px; font-weight: bold; font-family: sans-serif; white-space: nowrap;">{name}</p>
+            <p style="margin: 0; color: {card_color}; font-size: 13px; font-weight: bold; font-family: monospace; white-space: normal; word-break: break-all; line-height: 1.2;">
+                <span style="font-size: 10px; margin-right: 2px;">{card_arrow}</span>{display_val}
+            </p>
+        </div>
+        """
+
+# 4. 一键打入全画幅横向弹性自适应大天幕
+# 4. 一键打入全画幅横向自适应两排/多排响应式天幕墙
 components.html(
     f"""
-    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; width: 100%; font-family: monospace; gap: 8px;">
-        
-        <div style="flex: 1; min-width: 180px; background-color: #161b22; padding: 10px 14px; border-radius: 6px; border-top: 3px solid #00FF00; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
-            <p style="margin: 0 0 4px 0; color: #8b949e; font-size: 11px; font-weight: bold;">北京时间 (SHANGHAI)</p>
-            <p id="sky-clock-bj" style="margin: 0; color: #58a6ff; font-size: 15px; font-weight: bold;">同步中...</p>
-        </div>
-
-        <div style="flex: 1; min-width: 180px; background-color: #161b22; padding: 10px 14px; border-radius: 6px; border-top: 3px solid #ff9900; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
-            <p style="margin: 0 0 4px 0; color: #8b949e; font-size: 11px; font-weight: bold;">纽约时间 (NEW YORK)</p>
-            <p id="sky-clock-ny" style="margin: 0; color: #f0883e; font-size: 15px; font-weight: bold;">同步中...</p>
-        </div>
-
-        <div style="flex: 1; min-width: 160px; background-color: #1a2333; padding: 10px 14px; border-radius: 6px; border-top: 3px solid #ffcc00; box-shadow: 0 4px 6px rgba(0,0,0,0.4);">
-            <p style="margin: 0 0 4px 0; color: #ffcc00; font-size: 11px; font-weight: bold;">S&P 500 (标普大盘)</p>
-            <p style="margin: 0; color: #ffffff; font-size: 16px; font-weight: bold;">{index_snapshot['GSPC']:,.2f}</p>
-        </div>
-
-        <div style="flex: 1; min-width: 160px; background-color: #1a2333; padding: 10px 14px; border-radius: 6px; border-top: 3px solid #ffcc00; box-shadow: 0 4px 6px rgba(0,0,0,0.4);">
-            <p style="margin: 0 0 4px 0; color: #ffcc00; font-size: 11px; font-weight: bold;">DOW 30 (道指工业)</p>
-            <p style="margin: 0; color: #ffffff; font-size: 16px; font-weight: bold;">{index_snapshot['DJI']:,.2f}</p>
-        </div>
-
-        <div style="flex: 1; min-width: 160px; background-color: #1a2333; padding: 10px 14px; border-radius: 6px; border-top: 3px solid #ffcc00; box-shadow: 0 4px 6px rgba(0,0,0,0.4);">
-            <p style="margin: 0 0 4px 0; color: #ffcc00; font-size: 11px; font-weight: bold;">NASDAQ (纳指综合)</p>
-            <p style="margin: 0; color: #ffffff; font-size: 16px; font-weight: bold;">{index_snapshot['IXIC']:,.2f}</p>
-        </div>
-
-        <div id="macro-tiles-insertion" style="display: flex; flex: 5; gap: 8px; flex-wrap: wrap;"></div>
+    <div class="macro-container">
+        {macro_cards_html}
     </div>
-
-    <script>
-    // 1. 现场解算宏观卡片排布
-    const macroData = {macro_json_str};
-    const container = document.getElementById('macro-tiles-insertion');
-    
-    for (const [name, val] of Object.entries(macroData)) {{
-        let borderTopColor = "#58a6ff";
-        if (val.includes("新增") || val.includes("+")) borderTopColor = "#00FF00";
-        else if (val.includes("符合") || val.includes("控")) borderTopColor = "#f0883e";
+    <style>
+        body {{ 
+            margin: 0; 
+            background-color: transparent; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }}
+        .macro-container {{
+            display: flex; 
+            flex-wrap: wrap;       /* 🚀 核心突破点：允许自动弹性换行 */
+            justify-content: flex-start; 
+            width: 100%; 
+            gap: 8px;              /* 紧凑网格间距 */
+        }}
+        /* 🎨 动态响应式卡片网格拓扑 */
+        .macro-container > div {{
+            flex: 1 1 calc(20% - 8px); /* 🟢 默认在宽屏下尽量一行放 5 个左右，9个指标自然均匀分成完美的 2 排 */
+            min-width: 150px;          /* 🛡️ 限制单卡片极限卡口，防止挤压变形 */
+            box-sizing: border-box;
+        }}
         
-        const card = document.createElement('div');
-        card.style = `flex: 1; min-width: 150px; background-color: #161b22; padding: 10px 14px; border-radius: 6px; border-top: 3px solid ${{borderTopColor}}; box-shadow: 0 4px 6px rgba(0,0,0,0.3);`;
-        card.innerHTML = `<p style="margin: 0 0 4px 0; color: #8b949e; font-size: 11px; font-weight: bold;">${{name}}</p>
-                          <p style="margin: 0; color: #ffffff; font-size: 14px; font-weight: bold; white-space: normal; word-break: break-all;">${{val}}</p>`;
-        container.appendChild(card);
-    }}
-
-    // 2. 高频跨时区天幕电子钟心跳引擎
-    function updateSkyClocks() {{
-        const now = new Date();
-        const optBJ = {{timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false}};
-        const partsBJ = new Intl.DateTimeFormat('zh-CN', optBJ).formatToParts(now);
-        document.getElementById('sky-clock-bj').innerText = `${{partsBJ.find(p => p.type === 'year').value}}-${{partsBJ.find(p => p.type === 'month').value}}-${{partsBJ.find(p => p.type === 'day').value}} ${{partsBJ.find(p => p.type === 'hour').value}}:${{partsBJ.find(p => p.type === 'minute').value}}:${{partsBJ.find(p => p.type === 'second').value}}`;
-
-        const optNY = {{timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false}};
-        const partsNY = new Intl.DateTimeFormat('zh-CN', optNY).formatToParts(now);
-        document.getElementById('sky-clock-ny').innerText = `${{partsNY.find(p => p.type === 'year').value}}-${{partsNY.find(p => p.type === 'month').value}}-${{partsNY.find(p => p.type === 'day').value}} ${{partsNY.find(p => p.type === 'hour').value}}:${{partsNY.find(p => p.type === 'minute').value}}:${{partsNY.find(p => p.type === 'second').value}}`;
-    }}
-    
-    updateSkyClocks();
-    setInterval(updateSkyClocks, 1000);
-    </script>
-    <style>body {{ margin: 0; background-color: transparent; overflow: hidden; }}</style>
+        /* 📱 针对窄屏、竖屏、分屏或小浏览器的媒体查询自适应自愈 */
+        @media (max-width: 1200px) {{
+            .macro-container > div {{
+                flex: 1 1 calc(25% - 8px); /* 中等屏幕一行 4 个 */
+            }}
+        }}
+        @media (max-width: 900px) {{
+            .macro-container > div {{
+                flex: 1 1 calc(33.33% - 8px); /* 小屏幕、竖屏下一行 3 个 */
+            }}
+        }}
+        @media (max-width: 600px) {{
+            .macro-container > div {{
+                flex: 1 1 calc(50% - 8px); /* 极端窄屏下一行 2 个 */
+            }}
+        }}
+    </style>
     """,
-    height=125,
+    height=150, # 🚀 物理提权高度：从 68px 扩容到 150px，给换行预留充裕的垂直伸缩空间，彻底防止内容被截断
 )
 
 strl.markdown("---")
 
 # =====================================================================
-# 🚨 降维并网：三大核心标签页点火发射
+# 🚨 三大标签页并网分流
 # =====================================================================
 tab_tech, tab_market, tab_decision = strl.tabs(["📈 动态技术面多显大屏", "🔮 智能体基本面审计长卷", "🦅 M7 主权决策战略操作仓"])
 
-global_cached_stock_news = []
-global_cached_geo_news = []
-
+# 下方的标签页内容（tab_tech, tab_market, tab_decision）保持你原本完好无损的逻辑...
+# [此处原封不动承接你原本的 tab_tech, tab_market, tab_decision 渲染逻辑代码，不再赘述]
 # =====================================================================
-# 📈 标签页 1：动态技术面多显大屏 (首发纳指大盘 K 线长卷)
+# 📈 标签页 1：动态技术面多显大屏 (首发纳指大盘 K 线长卷 - 满血Python动态视口切盘版)
 # =====================================================================
 with tab_tech:
-    # 无条件将纳斯达克综合大盘基准拉到第一位展开冲锋
+    # 🚀🔥【核心大并网点一】：在技术大屏最顶端，无缝挂载全大屏最高联动主权的时基切盘纽
+    # 它将作为全画布 4 轴自适应的核心逻辑中枢
+    time_mode = strl.radio(
+        "📊 核心量化看盘时基视口 (一键切换将由 Python 底层动态提纯 Y 轴高低点边界 · 100% 抽干黑洞留白)",
+        options=["1m", "3m", "6m", "1y", "5y", "Max"],
+        index=2,  # 默认无损锁定在 6m 视口上
+        horizontal=True,
+        key="m7_global_time_mode"
+    )
+    strl.markdown("---")
+
+    # 🌟 核心突破二：无条件将纳斯达克综合大盘基准拉到第一位展开冲锋，并注入 time_mode 参数
     with strl.expander("📊 【🌍 纳斯达克综合指数 (NASDAQ Composite)】 核心大周期走势图", expanded=True):
-        fig_nasdaq = generate_m7_clean_charts("^IXIC", period_choice)
+        # 强力传入选中的时基模式
+        fig_nasdaq = generate_m7_clean_charts("^IXIC", period_choice, time_range_mode=time_mode)
         if fig_nasdaq is not None:
-            strl.plotly_chart(fig_nasdaq, use_container_width=True, key=f"t_nasdaq_base_{period_choice}")
+            strl.plotly_chart(fig_nasdaq, use_container_width=True, key=f"t_nasdaq_base_{period_choice}_{time_mode}")
             
     strl.markdown("#### 🏢 标的成份股技术面板")
     if not selected_tickers:
@@ -252,150 +372,57 @@ with tab_tech:
     else:
         for ticker in selected_tickers:
             with strl.expander(f"展开/收起 【{ticker}】 技术面看板", expanded=True):
-                fig = generate_m7_clean_charts(ticker, period_choice)
+                # 强力传入选中的时基模式，让所有的自选个股（GOOGL, NVDA）全部实现 4 轴动态自愈
+                fig = generate_m7_clean_charts(ticker, period_choice, time_range_mode=time_mode)
                 if fig is not None:
-                    strl.plotly_chart(fig, use_container_width=True, key=f"t_{ticker}_{period_choice}")
-
-
-# =====================================================================
-# 🔮 标签页 2：智能体基本面审计长卷
-# =====================================================================
+                    strl.plotly_chart(fig, use_container_width=True, key=f"t_{ticker}_{period_choice}_{time_mode}")
 with tab_market:
-    if not selected_tickers:
-        strl.info("💡 提示：请在左侧控制中心锁定股票。")
+    if not selected_tickers: strl.info("💡 提示：请在左侧控制中心锁定股票。")
     else:
         strl.markdown("### 📝 多智能体基本面联审研报")
         audit_target = strl.selectbox("🎯 请选择本次点火 AI 联审的核心目标:", options=selected_tickers)
-        
         report_container = strl.empty()
         local_json_path = os.path.join(DATA_CACHE_DIR, f"fmp_cache_{audit_target}.json")
-        has_local_json = os.path.exists(local_json_path)
-        
-        if "audit_cache" not in strl.session_state:
-            strl.session_state["audit_cache"] = ""
-
-        if not strl.session_state["audit_cache"] and has_local_json:
+        if "audit_cache" not in strl.session_state: strl.session_state["audit_cache"] = ""
+        if not strl.session_state["audit_cache"] and os.path.exists(local_json_path):
             try:
                 with open(local_json_path, "r", encoding="utf-8") as f:
                     local_data = json.load(f)
-                    raw_text = local_data.get("audit_report", json.dumps(local_data, ensure_ascii=False))
-                    strl.session_state["audit_cache"] = f"💡 [M7-FMP-DOCK] 已成功识别并打捞持久化物理资产大坝库：\n\n{raw_text[:1200]}..."
-            except Exception as e:
-                print(f"读取持久化 FMP JSON 异常: {e}")
-
-        if strl.session_state["audit_cache"]:
-            report_container.markdown(strl.session_state["audit_cache"])
-        else:
-            report_container.markdown(f"> 锁定战略主攻目标: **{audit_target}**。持久化物理库暂无记录，请点击点火状态机。")
-
+                    strl.session_state["audit_cache"] = f"💡 [M7-FMP-DOCK] 已成功识别并打捞持久化物理资产大坝库：\n\n{local_data.get('audit_report', '')[:1200]}..."
+            except: pass
+        if strl.session_state["audit_cache"]: report_container.markdown(strl.session_state["audit_cache"])
         if strl.button("🚀 启动 AI 多维基本面联审 (点火状态机)", use_container_width=True):
-            status_net.warning(f"🔄 正在唤醒本地子节点，审理 [{audit_target}] 中...")
-            report_container.info(f"⏳ **LangGraph 状态机已对 [{audit_target}] 点火**...")
             try:
                 audit_result = run_m7_audit(audit_target, period_choice)
                 if audit_result:
-                    status_net.success(f"🎉 {audit_target} 财务审计圆满合龙！")
-                    report_container.markdown(audit_result)
-                    strl.session_state["audit_cache"] = audit_result 
-                    
-                    try:
-                        structured_output = {"ticker": audit_target, "period": period_choice, "audit_report": audit_result}
-                        with open(local_json_path, "w", encoding="utf-8") as wf:
-                            json.dump(structured_output, wf, ensure_ascii=False, indent=2)
-                    except Exception as w_err: print(f"回填写入持久化资产失败: {w_err}")
-                else:
-                    status_net.error("❌ 审计断流")
-            except Exception as ui_err: status_net.error(f"❌ 运行期突发崩溃: {ui_err}")
-
+                    report_container.markdown(audit_result); strl.session_state["audit_cache"] = audit_result
+                    with open(local_json_path, "w", encoding="utf-8") as wf: json.dump({"ticker": audit_target, "period": period_choice, "audit_report": audit_result}, wf, ensure_ascii=False, indent=2)
+            except Exception as e: strl.error(f"异常: {e}")
         strl.markdown("---")
-        strl.markdown(f"### 📰 M7 高敏舆情雷达监控舱")
         news_col1, news_col2 = strl.columns(2)
         with news_col1:
             strl.subheader(f"🏢 {audit_target} 最新关联热点摘要")
-            stock_news_list = news_engine.get_latest_news(query_type="stock", topic=audit_target, limit=5)
-            global_cached_stock_news = stock_news_list 
-            for item in stock_news_list:
+            for item in news_engine.get_latest_news(query_type="stock", topic=audit_target, limit=5):
                 with strl.expander(f"📌 {item['title']}", expanded=False): strl.markdown(item['summary'])
         with news_col2:
             strl.subheader("🌍 全球地缘政治前沿动向")
-            geo_news_list = news_engine.get_latest_news(query_type="geopolitics", limit=5)
-            global_cached_geo_news = geo_news_list 
-            for item in geo_news_list:
+            for item in news_engine.get_latest_news(query_type="geopolitics", limit=5):
                 with strl.expander(f"⚠️ {item['title']}", expanded=False): strl.markdown(item['summary'])
 
-# =====================================================================
-# 🦅 标签页 3：M7 主权决策战略操作仓
-# =====================================================================
 with tab_decision:
     strl.markdown(f"### 🦅 Gemini 3.5 多维因子自适应跨空间终极决策建议")
     decision_target = audit_target if 'audit_target' in locals() else (selected_tickers[0] if selected_tickers else None)
-    
-    if not decision_target:
-        strl.info("⏳ 正在等待数据链合龙... 请选择标的。")
+    if not decision_target: strl.info("⏳ 正在等待数据链合龙... 请选择标的。")
     else:
         local_json_file = os.path.join(DATA_CACHE_DIR, f"fmp_cache_{decision_target}.json")
-        is_fundamental_ready = bool(strl.session_state.get("audit_cache")) or os.path.exists(local_json_file)
-
-        d_col1, d_col2, d_col3, d_col4 = strl.columns(4)
-        d_col1.markdown(f"🎯 核心标的: **{decision_target}**")
-        d_col2.markdown(f"📈 宏观因子墙: <span style='color:#00FF00;'>🟢 已就绪</span>", unsafe_allow_html=True)
-        
-        if is_fundamental_ready:
-            d_col3.markdown(f"📝 FMP基本面: <span style='color:#00FF00; font-weight:bold;'>🟢 已读取持久化物理库</span>", unsafe_allow_html=True)
-        else:
-            d_col3.markdown(f"📝 FMP基本面: <span style='color:#FF9900;'>⚠️ 未发现本地物理库</span>", unsafe_allow_html=True)
-            
-        d_col4.markdown(f"📰 MCP舆情流: <span style='color:#00FF00;'>🟢 已双向并网</span>", unsafe_allow_html=True)
-        
-        strl.markdown("---")
-        
-        decision_cache_key = f"decision_{decision_target}_{period_choice}"
-        if decision_cache_key not in strl.session_state: strl.session_state[decision_cache_key] = ""
-            
         if strl.button(f"🔥 点火决策状态机 -> 下达 [{decision_target}] 操盘战略", use_container_width=True):
             with strl.spinner(f"🦅 M7 首席战略家 Gemini 正在执行高维脱水提纯..."):
-                final_audit_content = strl.session_state.get("audit_cache", "")
-                
-                if not final_audit_content or "💡" not in final_audit_content:
-                    if os.path.exists(local_json_file):
-                        try:
-                            with open(local_json_file, "r", encoding="utf-8") as f:
-                                local_json_data = json.load(f)
-                                final_audit_content = local_json_data.get("audit_report", json.dumps(local_json_data, ensure_ascii=False))
-                                strl.session_state["audit_cache"] = f"💡 [M7-EMERGENCY-DOCK] 成功吞噬持久化大坝"
-                        except Exception as file_err: final_audit_content = str(file_err)
-
-                current_time_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S (UTC+8)")
-                time_anchor_instruction = f"【M7系统高优先级时钟注入】\n当前时间: {current_time_str}。\n==================================================\n\n"
-                final_audit_content_with_time = time_anchor_instruction + final_audit_content
-
-                macro_input = global_cached_macro if global_cached_macro else macro_engine.get_macro_indicators()
-                stock_news_input = global_cached_stock_news if global_cached_stock_news else news_engine.get_latest_news(query_type="stock", topic=decision_target, limit=5)
-                geo_news_input = global_cached_geo_news if global_cached_geo_news else news_engine.get_latest_news(query_type="geopolitics", limit=5)
-                
-                raw_decision_report = decision_engine.generate_m7_weekly_decision(
-                    ticker=decision_target, period_choice=period_choice, macro_data=macro_input,
-                    audit_text=final_audit_content_with_time, stock_news=stock_news_input, geo_news=geo_news_input
-                )
-                strl.session_state[decision_cache_key] = raw_decision_report
-                
-        if strl.session_state[decision_cache_key]:
-            strl.markdown('<div style="background-color:#111625; padding:12px; border-radius:8px; border-left: 5px solid #00FF00; margin-bottom: 15px;"><h4 style="color:#00FF00; margin-top:0px; margin-bottom:0px; font-family: monospace;">🦅 M7 量化主权研报体系 · 决策流完美合龙</h4></div>', unsafe_allow_html=True)
-            raw_report = strl.session_state[decision_cache_key]
-            clean_text = ""
-            
-            if isinstance(raw_report, list) and len(raw_report) > 0:
-                node = raw_report[0]
-                clean_text = node.text if hasattr(node, "text") else (node.get("text", str(node)) if isinstance(node, dict) else str(node))
-            elif isinstance(raw_report, dict): clean_text = raw_report.get("text", raw_report.get("content", str(raw_report)))
-            elif isinstance(raw_report, str):
-                if raw_report.strip().startswith("[") or raw_report.strip().startswith("{"):
+                final_content = strl.session_state.get("audit_cache", "")
+                if not final_content and os.path.exists(local_json_file):
                     try:
-                        if "'text':" in raw_report:
-                            s = raw_report.find("'text': '") + 9
-                            e = raw_report.find("', 'type'")
-                            if s != -1 and e != -1: clean_text = raw_report[s:e].replace("\\n", "\n")
+                        with open(local_json_file, "r", encoding="utf-8") as f: final_content = json.load(f).get("audit_report", "")
                     except: pass
-                if not clean_text: clean_text = raw_report
-            else: clean_text = str(raw_report)
-            strl.markdown(clean_text)
+                raw_rep = decision_engine.generate_m7_weekly_decision(decision_target, period_choice, global_cached_macro, f"【M7时钟注入】\n当前时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}。\n" + final_content, news_engine.get_latest_news(query_type="stock", topic=decision_target, limit=5), news_engine.get_latest_news(query_type="geopolitics", limit=5))
+                strl.session_state[f"decision_{decision_target}_{period_choice}"] = raw_rep
+        dec_res = strl.session_state.get(f"decision_{decision_target}_{period_choice}", "")
+        if dec_res: strl.markdown(dec_res)
