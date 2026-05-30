@@ -48,10 +48,17 @@ strl.set_page_config(page_title="M7-ALPHA 量化多智能体终端", page_icon="
 # =====================================================================
 # 🧠 🛡️ 【全局共享进程内存大坝】
 # =====================================================================
+# =====================================================================
+# 🧠 🛡️ 【全局共享进程内存大坝】
+# =====================================================================
 if "M7_GLOBAL_STATIC_MEM" not in globals():
     globals()["M7_GLOBAL_STATIC_MEM"] = {}
     globals()["M7_TARGET_TICKERS"] = ["GOOGL", "NVDA"]
 
+# 🚀🔥【新增主权动态个股锁】：用于跨标签页动态校准顶部四色指示灯
+if "M7_CURRENT_AUDIT_TICKER" not in strl.session_state:
+    strl.session_state["M7_CURRENT_AUDIT_TICKER"] = "GOOGL" # 默认初始锚定 Google
+    
 def m7_async_market_core_pump():
     """独立于 Streamlit 主进程之外的操作系统级守护线程"""
     while True:
@@ -207,27 +214,31 @@ with clock_col:
 # =====================================================================
 # 🚀🔥【核心降维回嵌】：工业级四色数据主权物理验证指示灯大阵 (大小写双规对齐)
 # =====================================================================
-test_target = "GOOGL" 
+# =====================================================================
+# 🚀🔥【核心降维回嵌】：工业级四色数据主权物理验证指示灯大阵 (动态个股主权互锁版)
+# =====================================================================
+# 🚀 动态提权：指示灯不再焊死在 GOOGL 上，而是实时追踪用户当前正在审计哪个个股！
+test_target = strl.session_state["M7_CURRENT_AUDIT_TICKER"]
 
 macro_light = "🟢 宏观经济指标大坝 [已并网]" if global_cached_macro else "🔴 宏观经济数据断流 [未接入]"
 try:
     test_news = news_engine.get_latest_news(query_type="stock", topic=test_target, limit=1)
-    news_light = "🟢 舆情雷达网络网关 [已激活]" if test_news else "🔴 舆情雷达信源静默 [待重试]"
+    news_light = f"🟢 舆情雷达网关 [{test_target} 已激活]" if test_news else "🔴 舆情雷达信源静默 [待重试]"
 except:
     news_light = "🔴 舆情雷达网络阻断 [熔断]"
 
-# 🚀🔥【铁血双轨自愈探测】：同时扫描全大写和全小写物理文件名，防止 Linux 容器下大小写错位锁死
+# 铁血双轨自愈探测
 kline_lower = os.path.join(DATA_CACHE_DIR, f"{test_target.lower()}_10y.parquet")
 kline_upper = os.path.join(DATA_CACHE_DIR, f"{test_target.upper()}_10y.parquet")
 
-# 只要大写的物理文件或者小写的物理文件有一个存在，就判定并网成功！
 if os.path.exists(kline_lower) or os.path.exists(kline_upper):
-    kline_light = "🟢 10y二进制K线大坝 [落盘存储]"
+    kline_light = f"🟢 10y二进制 [{test_target}] K线大坝 [落盘存储]"
 else:
-    kline_light = "🔴 10yK线Parquet大坝 [未同步]"
+    kline_light = f"🔴 10yK线 [{test_target}] Parquet大坝 [未同步]"
 
+# 🚀🔥【核心纠偏点】：动态扫描当前个股的财务缓存！文件不在，Adobe立刻会变红灯！
 fmp_file_check = os.path.join(DATA_CACHE_DIR, f"fmp_cache_{test_target}.json")
-fmp_light = "🟢 FMP基本面财务 short评 [有持久化缓存]" if os.path.exists(fmp_file_check) else "🔴 FMP离线资产大坝 [未建立]"
+fmp_light = f"🟢 FMP财务审计 [{test_target}] 有持久化缓存" if os.path.exists(fmp_file_check) else f"🔴 FMP离线资产 [{test_target}] 未建立"
 
 strl.markdown(
     f"""
@@ -240,7 +251,6 @@ strl.markdown(
     """,
     unsafe_allow_html=True
 )
-
 # =====================================================================
 # ⚙️ 控制中心侧边栏
 # =====================================================================
@@ -395,11 +405,20 @@ with tab_market:
     if not selected_tickers: 
         strl.info("💡 提示：请在左侧控制中心锁定股票。")
     else:
-        audit_target = strl.selectbox("🎯 请选择本次点火 AI 联审的核心目标:", options=selected_tickers, key="fmp_audit_target_selector")
+        # 🚀🔥【互锁网关】：把选择框的值直接绑给会话锁，只要一变，全盘通晓！
+        audit_target = strl.selectbox(
+            "🎯 请选择本次点火 AI 联审的核心目标:", 
+            options=selected_tickers, 
+            key="fmp_audit_target_selector"
+        )
         
-        # -----------------------------------------------------------------
-        # 🚨 🔥【布局提权】：第一层 - 纯净上置 2 列前沿雷达新闻网关 (物理去噪声，保护日期不被切断)
-        # -----------------------------------------------------------------
+        # 强制将最新选择灌回全局会话状态机，并判断是否需要触发页面刷新重绘指示灯
+        if strl.session_state["M7_CURRENT_AUDIT_TICKER"] != audit_target:
+            strl.session_state["M7_CURRENT_AUDIT_TICKER"] = audit_target
+            strl.rerun() # 瞬间重启画布，让最顶部的验证灯立马变色
+            
+        local_json_path = os.path.join(DATA_CACHE_DIR, f"fmp_cache_{audit_target}.json")
+        # ... 后面保持你原有的新闻和财报大坝代码不变 ...
         news_col1, news_col2 = strl.columns(2)
         with news_col1:
             strl.subheader(f"🏢 {audit_target} 最新关联热点摘要")
