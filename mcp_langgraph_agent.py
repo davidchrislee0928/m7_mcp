@@ -29,7 +29,7 @@ API_KEY_POOL = [
     os.environ.get("GOOGLE_API_KEY2"),
     os.environ.get("GOOGLE_API_KEY3"),
     os.environ.get("GOOGLE_API_KEY4"),
-    os.environ.get("GOOGLE_API_KEY"), 
+    os.environ.get("GOOGLE_API_KEY5"), 
 ]
 
 # 🔥 铁血强洗：不仅过滤 None，还要剔除空字符串、前后空格、以及任何带引号的脏文本
