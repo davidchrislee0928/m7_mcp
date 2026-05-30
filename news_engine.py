@@ -172,7 +172,7 @@ async def fetch_news_via_true_mcp_protocol(search_query: str, limit: int) -> lis
                 link = item.get("url", "")
                 source_name = item.get("source", {}).get("name", "Global Financial")
                 
-                formatted_summary = f"📰 **M7 情報監測中心 (真·MCP 官方網絡通道)** \n\n**信源機構**: {source_name}\n\n{summary}"
+                formatted_summary = f"📰 \n**信源機構**: {source_name}\n\n{summary}"
                 if link: 
                     formatted_summary += f" \n\n🔗 **實時信源鏈結**: {link}"
                     

@@ -76,13 +76,17 @@ if not os.path.exists(CACHE_DIR):
 # =====================================================================
 def get_company_info_fmp(symbol: str) -> list:
     url = f"https://financialmodelingprep.com/stable/profile?symbol={symbol.upper()}&apikey={FMP_API_KEY}"
-    print(f"📡 [M7-LOG-HTTP] 正在物理请求 FMP 公司简况端点 URL: {url.split('apikey=')[0]}apikey=***")
+    print(f"\n📡 [M7-LOG-HTTP] 正在物理请求 FMP 公司简况端点 URL: {url.split('apikey=')[0]}apikey=***")
     try:
         res = requests.get(url, timeout=12)
         print(f"📡 [M7-LOG-HTTP] 公司简况端点返回状态码: {res.status_code}")
         if res.status_code == 200:
             res_json = res.json()
             print(f"📡 [M7-LOG-HTTP] 成功打捞公司简况，记录数: {len(res_json)}")
+            # 🚀🔥【网络结构调试印记】：强制解构 FMP 原始 Profile 数据响应包
+            print("👇 --- [FMP ORIGINAL PROFILE STRUCTURE START] --- 👇")
+            print(json.dumps(res_json, indent=2, ensure_ascii=False))
+            print("▲ --- [END OF FMP ORIGINAL PROFILE STRUCTURE] --- ▲\n")
             return res_json
         return []
     except Exception as e:
@@ -91,13 +95,17 @@ def get_company_info_fmp(symbol: str) -> list:
 
 def get_income_statement_fmp(symbol: str) -> list:
     url = f"https://financialmodelingprep.com/stable/income-statement?symbol={symbol.upper()}&period=quarter&limit=5&apikey={FMP_API_KEY}"
-    print(f"📡 [M7-LOG-HTTP] 正在物理请求 FMP 5季度利润表端点 URL: {url.split('apikey=')[0]}apikey=***")
+    print(f"\n📡 [M7-LOG-HTTP] 正在物理请求 FMP 5季度利润表端点 URL: {url.split('apikey=')[0]}apikey=***")
     try:
         res = requests.get(url, timeout=12)
         print(f"📡 [M7-LOG-HTTP] 利润表端点返回状态码: {res.status_code}")
         if res.status_code == 200:
             res_json = res.json()
             print(f"📡 [M7-LOG-HTTP] 成功打捞季度利润表，记录数: {len(res_json)}")
+            # 🚀🔥【网络结构调试印记】：强制解构 FMP 原始 Income Statement 数据响应包
+            print("👇 --- [FMP ORIGINAL INCOME STRUCTURE START] --- 👇")
+            print(json.dumps(res_json, indent=2, ensure_ascii=False))
+            print("▲ --- [END OF FMP ORIGINAL INCOME STRUCTURE] --- ▲\n")
             return res_json
         return []
     except Exception as e:
@@ -110,7 +118,6 @@ def get_income_statement_fmp(symbol: str) -> list:
 # =====================================================================
 def get_m7_financial_packet_with_cache(symbol: str) -> dict:
     symbol = symbol.upper().strip()
-    # 🔥【精确对齐】：将财务原始数据 JSON 完美定位在物理大坝存储盘下
     cache_file_path = os.path.join(CACHE_DIR, f"fmp_cache_{symbol}.json")
     
     if os.path.exists(cache_file_path):
@@ -122,7 +129,15 @@ def get_m7_financial_packet_with_cache(symbol: str) -> dict:
             time_diff = datetime.datetime.now() - cache_time
             
             if time_diff.days < 1:
-                print(f"🟢 [M7-LOG-CACHE] 物理命中本地持久化缓存盾牌！标的: [{symbol}]，本地缓存生成时间为: {cache_time_str}")
+                print(f"\n🟢 [M7-LOG-CACHE] 物理命中本地持久化缓存盾牌！标的: [{symbol}]，本地缓存生成时间为: {cache_time_str}")
+                # 🚀🔥【持久化快照调试印记】：强制透视落盘大坝内的缓存数据空间
+                print("👇 --- [LOCAL CACHED HARD DISK DATA SNAPSHOT START] --- 👇")
+                print(f"   -> 存储路径: {cache_file_path}")
+                print(f"   -> 包含顶级键: {list(cache_data.keys())}")
+                if "packet" in cache_data:
+                    print(f"   ├─ 缓存Profile存在标识: {bool(cache_data['packet'].get('profile'))}")
+                    print(f"   ├─ 缓存Income列表条数: {len(cache_data['packet'].get('income', []))} 条")
+                print("▲ --- [END OF LOCAL CACHED HARD DISK DATA SNAPSHOT] --- ▲\n")
                 return cache_data["packet"]
         except Exception as e:
             print(f"⚠️ [M7-LOG-CACHE] 读取本地缓存异动: {e}")
@@ -151,13 +166,19 @@ def run_m7_audit(ticker_symbol: str, kline_period: str = "日K"):
     # 🌟 2. 核心去噪过滤瘦身，并在控制台强力打印数据校验
     purified_packet = {"companyName": "Unknown", "mcap": 0, "quarters": []}
     try:
-        # 🟢 修改后的完璧对齐代码
         if raw_packet.get("profile") and len(raw_packet["profile"]) > 0:
             profile_node = raw_packet["profile"][0]
             purified_packet["companyName"] = profile_node.get("companyName", "Unknown")
             
-            # 🔥 FMP 官方规范字段是 mktCap，这里进行兼容性打捞
-            purified_packet["mcap"] = profile_node.get("mktCap", profile_node.get("mcap", 0))
+            # 🔥 FMP 官方新老规范多重并网对齐，兼容抓取 mktCap 字段
+            mcap_val = profile_node.get("mktCap", profile_node.get("marketCap", profile_node.get("mcap", 0)))
+            purified_packet["mcap"] = mcap_val
+            
+            print(f"🔍 [M7-DATA-EXPLORER] 提取基本面核心市值断点探针:")
+            print(f"   -> 从原始 Profile 中读到的 mktCap 值为: {profile_node.get('mktCap')}")
+            print(f"   -> 从原始 Profile 中读到的 marketCap 值为: {profile_node.get('marketCap')}")
+            print(f"   -> 最终清洗并网输出给大模型的 mcap 值为: {purified_packet['mcap']}")
+
         if raw_packet.get("income") and isinstance(raw_packet["income"], list):
             for q in raw_packet["income"]:
                 purified_packet["quarters"].append({
@@ -169,14 +190,14 @@ def run_m7_audit(ticker_symbol: str, kline_period: str = "日K"):
                     "operatingIncome": q.get("operatingIncome"),
                     "netIncome": q.get("netIncome")
                 })
-        print(f"📊 [M7-LOG-DIAGNOSTIC] Python清洗完毕。即将投喂给大模型的纯净季度财务节点明细:")
+        print(f"\n📊 [M7-LOG-DIAGNOSTIC] Python清洗完毕。即将投喂给大模型的纯净季度财务节点明细:")
         print(json.dumps(purified_packet, indent=2, ensure_ascii=False))
     except Exception as clean_err:
         print(f"❌ [M7-LOG-DIAGNOSTIC] 提炼数据发生异常: {clean_err}")
 
     # 🌟 3. 随机抽取化缘密钥
     selected_key = random.choice(active_google_keys)
-    print(f"🎲 [M7-LOG-ROULETTE] 阵列抽取活弹密钥通道: [...{selected_key[-6:] if selected_key else 'None'}]")
+    print(f"\n🎲 [M7-LOG-ROULETTE] 阵列抽取活弹密钥通道: [...{selected_key[-6:] if selected_key else 'None'}]")
     
     # 🌟 🌟 🌟 【精准并网：100% 遵照用户指示保持固有模型选择】 🌟 🌟 🌟
     llm = ChatGoogleGenerativeAI(
@@ -185,20 +206,23 @@ def run_m7_audit(ticker_symbol: str, kline_period: str = "日K"):
         google_api_key=selected_key
     )
     
-    # 🟢 修改后的动态对齐新代码
     # 获取当前最新的绝对时间
     now_time = datetime.datetime.now()
     current_date_cn = now_time.strftime("%Y年%m月%d日")
     current_date = now_time.strftime("%Y-%m-%d")
 
+# =====================================================================
+# mcp_langgraph_agent.py 内部 system_instruction 铁律阵列升级：
+# =====================================================================
     system_instruction = (
         f"# 🧠 M7-ALPHA 纳斯达克100成份股·基本面极简量化看板\n\n"
         f"## 🪐 时空锚定\n"
         f"当前真实时间是：**{current_date_cn}** (系统日期：{current_date})。看盘周期为：【{kline_period}】。\n\n"
-        f"## 🛡️ 首席审计官三大硬核铁律\n"
+        f"## 🛡️ 首席审计官四大硬核铁律\n"  # 👈 升级为四大铁律
         f"1. **禁止脑补修改年份**：固化截止日期（例如 NVDA 对应的 2025-10-26, 2026-01-25, 2026-04-26）。严禁虚报财年季度！\n"
         f"2. **数字格式化物理防御**：必须彻底封杀任何科学计数法！100%采用人类操盘手秒懂的『亿美元』本位结算（如 816.15 亿美元，不准写成原始长串数字）。\n"
-        f"3. **必须完整一吐到底**：严格按照一、二、三的章节大纲输出，必须把所有指标的环比、同比以及第三部分健康度论断全部完整交卷，绝对不准中途漏掉！\n\n"
+        f"3. **必须完整一吐到底**：严格按照一、二、三的章节大纲输出，必须把所有指标的环比、同比以及第三部分健康度论断全部完整交卷，绝对不准中途漏掉！\n"
+        f"4. **严禁走私 HTML 换行符**：在任何 Markdown 表格（包括『全维数据引证矩阵』和『核心三季度利润表』）的单元格内，**绝对禁止输出任何 <br>, <br />, 或 <br/> 标签**！如果一个单元格内有多项因子，请直接用空格、中划线（-）或标准的字符分段，确保前台表格渲染自然无瑕！\n\n"  # 👈 核心防线
         f"---\n"
         f"### 一、 🎯 战略哨所：【{ticker_symbol}】主轴定位\n"
         f"- 宏观定位：一句话指出其当前最新真实市值（以亿美元结算）与科技股核心地位。\n"
@@ -225,7 +249,7 @@ def run_m7_audit(ticker_symbol: str, kline_period: str = "日K"):
     
     # 🌟 4. 单兵直连点火与正文安全提取
     try:
-        print("📡 [M7-LOG-LLM] 3. 正在向满血 Gemini 通道发送 Invoke 指令，全量长卷计算开始...")
+        print("\n📡 [M7-LOG-LLM] 3. 正在向满血 Gemini 通道发送 Invoke 指令，全量长卷计算开始...")
         response = llm.invoke([SystemMessage(content=system_instruction), HumanMessage(content=user_task)])
         print("🟢 [M7-LOG-LLM] 4. 大脑计算响应成功！开始解析对象拓扑结构...")
         
@@ -270,5 +294,5 @@ def run_m7_audit(ticker_symbol: str, kline_period: str = "日K"):
         return f"❌ 终端联审发生内部异动崩溃: {e}"
 
 if __name__ == "__main__":
-    res = run_m7_audit("NVDA", "日K")
+    res = run_m7_audit("GOOGL", "日K")
     print(res)
