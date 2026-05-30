@@ -577,140 +577,178 @@ with tab_market:
 # =====================================================================
 # 🦅 M7 主权决策战略操作仓 (修复 Dict 架构冲突 + 强加高敏前台提示词 Log 探针)
 # =====================================================================
+# =====================================================================
+# 🦅 M7 主权决策战略操作仓 (联动风控状态机·因子缺陷物理锁定拦截版)
+# =====================================================================
 with tab_decision:
     strl.markdown(f"### 🦅 Gemini 3.5 多维因子自适应跨空间终极决策建议")
     decision_target = audit_target if 'audit_target' in locals() else (selected_tickers[0] if selected_tickers else None)
-    if not decision_target: strl.info("⏳ 正在等待数据链合龙... 请选择标的。")
+    
+    if not decision_target: 
+        strl.info("⏳ 正在等待数据链合龙... 请选择标的。")
     else:
         local_json_file = os.path.join(DATA_CACHE_DIR, f"fmp_cache_{decision_target}.json")
-        if strl.button(f"🔥 点火决策状态机 -> 下达 [{decision_target}] 操盘战略", use_container_width=True):
-            with strl.spinner(f"🦅 M7 首席战略家 Gemini 正在执行提纯..."):
-                final_content = strl.session_state.get("audit_cache", "")
-                if not final_content and os.path.exists(local_json_file):
-                    try:
-                        with open(local_json_file, "r", encoding="utf-8") as f: final_content = json.load(f).get("audit_report", "")
-                    except: pass
-                
-                current_live_price_str = "未获取到实时价"
-                if os.path.exists(LIVE_SNAPSHOT_PATH):
-                    try:
-                        with open(LIVE_SNAPSHOT_PATH, "r", encoding="utf-8") as rf:
-                            snap = json.load(rf)
-                            if decision_target in snap:
-                                current_live_price_str = f"${snap[decision_target]['curr']:.2f}"
-                    except: pass
-                
-                injection_prompt = (
-                    f"【M7时钟基准核心注入】\n"
-                    f"资产标的: {decision_target}\n"
-                    f"当前实盘最新收盘/交易价 (真基准): {current_live_price_str}\n"
-                    f"请以此最新真实价格为准，若历史研报文本中含有其他陈旧价格（如383.36），请自动将其视为历史记录，在下述决策中完全基于上述最新真基准价进行财务解算与操盘战略下达。\n\n"
-                    f"【附加关联历史研报库】:\n{final_content}"
-                )
+        
+        # -----------------------------------------------------------------
+        # 🛡️ 状态机硬核互锁雷达：物理探测第二页基本面研报是否完成落盘固化
+        # -----------------------------------------------------------------
+        base_audit_ready = False
+        final_content = ""
+        
+        if os.path.exists(local_json_file):
+            try:
+                with open(local_json_file, "r", encoding="utf-8") as f:
+                    disk_cache = json.load(f)
+                    # 只有当缓存文件存在，且内部的审计报告文本不为空时，才判定第二页通关！
+                    if "audit_report" in disk_cache and disk_cache["audit_report"].strip():
+                        final_content = disk_cache["audit_report"]
+                        base_audit_ready = True
+            except:
+                base_audit_ready = False
 
-                import re
+        # 如果 session_state 临时内存里有，做二次双重保障兼容
+        if not final_content:
+            final_content = strl.session_state.get("audit_cache", "")
+            if final_content.strip():
+                base_audit_ready = True
 
-                # 🚀🔥【个股舆情全自愈并网舱】
-                raw_stock_news = news_engine.get_latest_news(query_type="stock", topic=decision_target, limit=5)
-                processed_stock_news = []
-                if raw_stock_news:
-                    for n in raw_stock_news:
-                        if isinstance(n, dict):
-                            n_copy = n.copy()
-                            t_gate = n_copy.get("publishedAt", n_copy.get("time", n_copy.get("date", n_copy.get("pubDate", None))))
-                            s_text = n_copy.get("summary", n_copy.get("description", n_copy.get("content", "")))
-                            
-                            if not t_gate and s_text:
-                                t_match = re.search(r'([A-Za-z]+ \d{1,2}, \d{4})', s_text)
-                                if t_match: t_gate = t_match.group(1)
-                            
-                            if t_gate:
-                                t_str = str(t_gate).replace("T", " ").replace("Z", "").strip()
-                                if any(m in t_str for m in ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]):
-                                    final_n_time = t_str
-                                else:
-                                    final_n_time = t_str[:16] if len(t_str) >= 16 else t_str
-                            else:
-                                final_n_time = "2026-05-28"
-                            
-                            n_copy["title"] = f"⏱️ [{final_n_time}] {n_copy.get('title', '')}"
-                            n_copy["summary"] = f"【个股热点爆发于: {final_n_time}】 {s_text}"
-                            processed_stock_news.append(n_copy)
-                        else:
-                            processed_stock_news.append(n)
-
-                # 🚀🔥【地缘政治前沿全自愈并网舱】
-                raw_geo_news = news_engine.get_latest_news(query_type="geopolitics", limit=5)
-                processed_geo_news = []
-                if raw_geo_news:
-                    for n in raw_geo_news:
-                        if isinstance(n, dict):
-                            n_copy = n.copy()
-                            t_gate = n_copy.get("publishedAt", n_copy.get("time", n_copy.get("date", n_copy.get("pubDate", None))))
-                            s_text = n_copy.get("summary", n_copy.get("description", n_copy.get("content", "")))
-                            
-                            if not t_gate and s_text:
-                                t_match = re.search(r'([A-Za-z]+ \d{1,2}, \d{4})', s_text)
-                                if t_match: t_gate = t_match.group(1)
-                                    
-                            if t_gate:
-                                t_str = str(t_gate).replace("T", " ").replace("Z", "").strip()
-                                if any(m in t_str for m in ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]):
-                                    final_n_time = t_str
-                                else:
-                                    final_n_time = t_str[:16] if len(t_str) >= 16 else t_str
-                            else:
-                                final_n_time = "2026-05-28"
-                            
-                            n_copy["title"] = f"⏱️ [{final_n_time}] {n_copy.get('title', '')}"
-                            n_copy["summary"] = f"【地缘政治异动爆发于: {final_n_time}】 {s_text}"
-                            processed_geo_news.append(n_copy)
-                        else:
-                            processed_geo_news.append(n)
-
-                # 🚀🔥【前台日志流高亮倾泻监控点】
-                print("\n" + "📡"*20 + " [M7-DEBUG-CONSOLE] 鹰眼提示词雷达数据全量倾泻 " + "📡"*20)
-                print(f"📊 [M7-PROMPT-MONITOR] 顶层注入的价格时空 Prompt:\n{injection_prompt}")
-                print(f"📊 [M7-PROMPT-MONITOR] 洗净并网后的 processed_stock_news 共计: {len(processed_stock_news)} 条。核心解构结构透视:")
-                for idx, sn in enumerate(processed_stock_news):
-                    if isinstance(sn, dict):
-                        print(f"   ├─ 个股新闻 [{idx+1}] 标题: {sn.get('title')} | 摘要缩影: {sn.get('summary')[:120]}...")
-                print(f"📊 [M7-PROMPT-MONITOR] 洗净并网后的 processed_geo_news 共计: {len(processed_geo_news)} 条。核心解构结构透视:")
-                for idx, gn in enumerate(processed_geo_news):
-                    if isinstance(gn, dict):
-                        print(f"   ├─ 地缘新闻 [{idx+1}] 标题: {gn.get('title')} | 摘要缩影: {gn.get('summary')[:120]}...")
-                print("="*40 + " [M7-DEBUG-CONSOLE END] 管道流推送完毕，正式交付大模型计算 " + "="*40 + "\n")
-
-                # 正式并网投喂给大模型核心决策网关
-                raw_rep = decision_engine.generate_m7_weekly_decision(
-                    decision_target, 
-                    period_choice, 
-                    globals()["macro_data"], 
-                    injection_prompt, 
-                    processed_stock_news if processed_stock_news else raw_stock_news, 
-                    processed_geo_news if processed_geo_news else raw_geo_news
-                )
-                strl.session_state[f"decision_{decision_target}_{period_choice}"] = raw_rep
-                
-        dec_res = strl.session_state.get(f"decision_{decision_target}_{period_choice}", "")
-        if dec_res:
-            strl.markdown('<div style="background-color:#111625; padding:12px; border-radius:8px; border-left: 5px solid #00FF00; margin-bottom: 15px;"><h4 style="color:#00FF00; margin-top:0px; margin-bottom:0px; font-family: monospace;">🦅 M7 量化主权研报体系 · 决策流完美合龙</h4></div>', unsafe_allow_html=True)
-            clean_text = ""
-            if isinstance(dec_res, list) and len(dec_res) > 0:
-                node = dec_res[0]
-                clean_text = node.text if hasattr(node, "text") else (node.get("text", str(node)) if isinstance(node, dict) else str(node))
-            elif isinstance(dec_res, dict): clean_text = dec_res.get("text", dec_res.get("content", str(dec_res)))
-            elif isinstance(dec_res, str):
-                if dec_res.strip().startswith("[") or dec_res.strip().startswith("{"):
-                    try:
-                        if "'text':" in dec_res:
-                            s = dec_res.find("'text': '") + 9
-                            e = dec_res.find("', 'type'")
-                            if s != -1 and e != -1: clean_text = dec_res[s:e].replace("\\n", "\n")
-                    except: pass
-                if not clean_text: clean_text = dec_res
-            else: clean_text = str(dec_res)
+        # -----------------------------------------------------------------
+        # 🚨 🔥【风控状态机渲染层】：数据未全则强制封锁，全量引导去第二页点火
+        # -----------------------------------------------------------------
+        if not base_audit_ready:
+            strl.error(
+                f"🛑 **[M7-STRATEGY-BLOCK] 战略决策舱触发安全熔断锁死！**\n\n"
+                f"检测到核心目标标的 **[{decision_target}]** 尚未完成第二页的**『AI 多维基本面联审研报』**计算与资产落盘固化。\n\n"
+                f"💡 **战略主权长官指令:** 请立刻前往 **「🔮 智能体基本面审计长卷」** 标签页，点击大按钮启动基本面审计状态机。完成审计落盘后，本决策操作仓将自动完璧解锁并网！"
+            )
+            # 渲染一个灰色且无法点击的死按钮，物理隔离操作风险
+            strl.button(f"🔒 决策状态机已锁定 -> 请先完成 [{decision_target}] 基本面审计", disabled=True, use_container_width=True)
             
-            # 🚀🔥【第三页铁血清洗层】：网页端去噪
-            clean_decision_text = clean_text.replace("<br>", " ").replace("<br />", " ").replace("<br/>", " ")
-            strl.markdown(clean_decision_text)
+        else:
+            # 🟢 数据齐全，完美并网，放行最高指挥官的强制点火权！
+            strl.success(f"🟢 [M7-FACTOR-READY] 因子链合龙成功！标的 [{decision_target}] 基本面审计资产已就位，战略计算网关允许通行。")
+            
+            if strl.button(f"🔥 点火决策状态机 -> 下达 [{decision_target}] 操盘战略", use_container_width=True):
+                with strl.spinner(f"🦅 M7 首席战略家 Gemini 正在执行提纯..."):
+                    current_live_price_str = "未获取到实时价"
+                    if os.path.exists(LIVE_SNAPSHOT_PATH):
+                        try:
+                            with open(LIVE_SNAPSHOT_PATH, "r", encoding="utf-8") as rf:
+                                snap = json.load(rf)
+                                if decision_target in snap:
+                                    current_live_price_str = f"${snap[decision_target]['curr']:.2f}"
+                        except: pass
+                    
+                    injection_prompt = (
+                        f"【M7时钟基准核心注入】\n"
+                        f"资产标的: {decision_target}\n"
+                        f"当前实盘最新收盘/交易价 (真基准): {current_live_price_str}\n"
+                        f"请以此最新真实价格为准，若历史研报文本中含有其他陈旧价格（如383.36），请自动将其视为历史记录，在下述决策中完全基于上述最新真基准价进行财务解算与操盘战略下达。\n\n"
+                        f"【附加关联历史研报库】:\n{final_content}"
+                    )
+
+                    import re
+
+                    # 🚀🔥【个股舆情全自愈并网舱】
+                    raw_stock_news = news_engine.get_latest_news(query_type="stock", topic=decision_target, limit=5)
+                    processed_stock_news = []
+                    if raw_stock_news:
+                        for n in raw_stock_news:
+                            if isinstance(n, dict):
+                                n_copy = n.copy()
+                                t_gate = n_copy.get("publishedAt", n_copy.get("time", n_copy.get("date", n_copy.get("pubDate", None))))
+                                s_text = n_copy.get("summary", n_copy.get("description", n_copy.get("content", "")))
+                                
+                                if not t_gate and s_text:
+                                    t_match = re.search(r'([A-Za-z]+ \d{1,2}, \d{4})', s_text)
+                                    if t_match: t_gate = t_match.group(1)
+                                
+                                if t_gate:
+                                    t_str = str(t_gate).replace("T", " ").replace("Z", "").strip()
+                                    if any(m in t_str for m in ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]):
+                                        final_n_time = t_str
+                                    else:
+                                        final_n_time = t_str[:16] if len(t_str) >= 16 else t_str
+                                else:
+                                    final_n_time = "2026-05-28"
+                                
+                                n_copy["title"] = f"⏱️ [{final_n_time}] {n_copy.get('title', '')}"
+                                n_copy["summary"] = f"【个股热点爆发于: {final_n_time}】 {s_text}"
+                                processed_stock_news.append(n_copy)
+                            else:
+                                processed_stock_news.append(n)
+
+                    # 🚀🔥【地缘政治前沿全自愈并网舱】
+                    raw_geo_news = news_engine.get_latest_news(query_type="geopolitics", limit=5)
+                    processed_geo_news = []
+                    if raw_geo_news:
+                        for n in raw_geo_news:
+                            if isinstance(n, dict):
+                                n_copy = n.copy()
+                                t_gate = n_copy.get("publishedAt", n_copy.get("time", n_copy.get("date", n_copy.get("pubDate", None))))
+                                s_text = n_copy.get("summary", n_copy.get("description", n_copy.get("content", "")))
+                                
+                                if not t_gate and s_text:
+                                    t_match = re.search(r'([A-Za-z]+ \d{1,2}, \d{4})', s_text)
+                                    if t_match: t_gate = t_match.group(1)
+                                        
+                                if t_gate:
+                                    t_str = str(t_gate).replace("T", " ").replace("Z", "").strip()
+                                    if any(m in t_str for m in ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]):
+                                        final_n_time = t_str
+                                    else:
+                                        final_n_time = t_str[:16] if len(t_str) >= 16 else t_str
+                                else:
+                                    final_n_time = "2026-05-28"
+                                
+                                n_copy["title"] = f"⏱️ [{final_n_time}] {n_copy.get('title', '')}"
+                                n_copy["summary"] = f"【地缘政治异动爆发于: {final_n_time}】 {s_text}"
+                                processed_geo_news.append(n_copy)
+                            else:
+                                processed_geo_news.append(n)
+
+                    # 🚀🔥【前台日志流高亮倾泻监控点】
+                    print("\n" + "📡"*20 + " [M7-DEBUG-CONSOLE] 鹰眼提示词雷达数据全量倾泻 " + "📡"*20)
+                    print(f"📊 [M7-PROMPT-MONITOR] 顶层注入的价格时空 Prompt:\n{injection_prompt}")
+                    print(f"📊 [M7-PROMPT-MONITOR] 洗净并网后的 processed_stock_news 共计: {len(processed_stock_news)} 条。核心解构结构透视:")
+                    for idx, sn in enumerate(processed_stock_news):
+                        if isinstance(sn, dict):
+                            print(f"   ├─ 个股新闻 [{idx+1}] 标题: {sn.get('title')} | 摘要缩影: {sn.get('summary')[:120]}...")
+                    print(f"📊 [M7-PROMPT-MONITOR] 洗净并网后的 processed_geo_news 共计: {len(processed_geo_news)} 条。核心解构结构透视:")
+                    for idx, gn in enumerate(processed_geo_news):
+                        if isinstance(gn, dict):
+                            print(f"   ├─ 地缘新闻 [{idx+1}] 标题: {gn.get('title')} | 摘要缩影: {gn.get('summary')[:120]}...")
+                    print("="*40 + " [M7-DEBUG-CONSOLE END] 管道流推送完毕，正式交付大模型计算 " + "="*40 + "\n")
+
+                    # 正式并网投喂给大模型核心决策网关
+                    raw_rep = decision_engine.generate_m7_weekly_decision(
+                        decision_target, 
+                        period_choice, 
+                        globals()["macro_data"], 
+                        injection_prompt, 
+                        processed_stock_news if processed_stock_news else raw_stock_news, 
+                        processed_geo_news if processed_geo_news else raw_geo_news
+                    )
+                    strl.session_state[f"decision_{decision_target}_{period_choice}"] = raw_rep
+                    
+            dec_res = strl.session_state.get(f"decision_{decision_target}_{period_choice}", "")
+            if dec_res:
+                strl.markdown('<div style="background-color:#111625; padding:12px; border-radius:8px; border-left: 5px solid #00FF00; margin-bottom: 15px;"><h4 style="color:#00FF00; margin-top:0px; margin-bottom:0px; font-family: monospace;">🦅 M7 量化主权研报体系 · 决策流完美合龙</h4></div>', unsafe_allow_html=True)
+                clean_text = ""
+                if isinstance(dec_res, list) and len(dec_res) > 0:
+                    node = dec_res[0]
+                    clean_text = node.text if hasattr(node, "text") else (node.get("text", str(node)) if isinstance(node, dict) else str(node))
+                elif isinstance(dec_res, dict): clean_text = dec_res.get("text", dec_res.get("content", str(dec_res)))
+                elif isinstance(dec_res, str):
+                    if dec_res.strip().startswith("[") or dec_res.strip().startswith("{"):
+                        try:
+                            if "'text':" in dec_res:
+                                s = dec_res.find("'text': '") + 9
+                                e = dec_res.find("', 'type'")
+                                if s != -1 and e != -1: clean_text = dec_res[s:e].replace("\\n", "\n")
+                        except: pass
+                    if not clean_text: clean_text = dec_res
+                else: clean_text = str(dec_res)
+                
+                clean_decision_text = clean_text.replace("<br>", " ").replace("<br />", " ").replace("<br/>", " ")
+                strl.markdown(clean_decision_text)

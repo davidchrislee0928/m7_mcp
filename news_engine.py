@@ -1,4 +1,4 @@
-# news_engine.py (M7-ALPHA 真·MCP适配器架构·网络全解耦真完全体·自适应解包完美版)
+# news_engine.py (M7-ALPHA 真·MCP适配器架构·网络全解耦真完全体·自适应解包完美版 · 增强 Debug 诊断版)
 import os
 import sys
 import json
@@ -44,8 +44,6 @@ async def fetch_news_via_true_mcp_protocol(search_query: str, limit: int) -> lis
     # -----------------------------------------------------------------
     # 🎯【MCP 生命周期：断点 1/5】网络传输层建立（Establish Connection）
     # -----------------------------------------------------------------
-    # 此处利用 sse_client 向远端常驻的 Node.js 后台发起标准的物理长连接。
-    # 这一步通了，代表底层物理网络流（Read/Write Stream）已经安全咬合。
     print(f"📍 [断点 1/5] 正在通过标准协议向本地网络 MCP 节点建立连接...")
     
     async with sse_client(mcp_server_url) as (read_stream, write_stream):
@@ -53,8 +51,6 @@ async def fetch_news_via_true_mcp_protocol(search_query: str, limit: int) -> lis
         # -----------------------------------------------------------------
         # 🎯【MCP 生命周期：断点 2/5】会话绑定层（Session Binding）
         # -----------------------------------------------------------------
-        # 将底层的物理网络流（read_stream, write_stream）正式注入官方的 ClientSession。
-        # 此时，Python 客户端开始接管符合官方规范的 JSON-RPC 2.0 电报的分发与监听权限。
         print("🟢 [断点 2/5] 物理网络流通道建立成功！正在注入 ClientSession 会话控制器...")
         
         async with ClientSession(read_stream, write_stream) as session:
@@ -62,10 +58,6 @@ async def fetch_news_via_true_mcp_protocol(search_query: str, limit: int) -> lis
             # -----------------------------------------------------------------
             # 🎯【MCP 生命周期：断点 3/5】协议层握手（Protocol Initialization）
             # -----------------------------------------------------------------
-            # 🚀【这是纯正 MCP 的第一大铁证！】
-            # 此处向管道写入了符合 MCP 统一规范的 `initialize` 请求电报。
-            # 本地 Node.js 状态机接收后，会流式弹回它自己的名称、版本号和高维算力声明（Capabilities）。
-            # 只有通过这一步，两端才正式在“上下文协议大坝”上完成了血统认同！
             print("📍 [断点 3/5] 正在向远端 MCP 节点发送标准 `session.initialize()` 初始化握手...")
             await session.initialize()
                 
@@ -74,12 +66,11 @@ async def fetch_news_via_true_mcp_protocol(search_query: str, limit: int) -> lis
             # -----------------------------------------------------------------
             # 🎯【MCP 生命周期：断点 4/5】工具动态感知与映射（Tools Discovery）
             # -----------------------------------------------------------------
-            # 🚀【这是纯正 MCP 的第二大铁证！】
-            # `load_mcp_tools` 底层会默默向 Node 端打出一发 `tools/list` 协议包。
-            # Node 远端大坝会动态吐出它所拥有的工具矩阵，Python 侧通过“反射”机制，
-            # 零硬编码、全自动地将其转换为大模型（Gemini）可以直接无缝感知的 LangChain BaseTool。
             print("📡 [断点 5/5] 正在激活 [langchain-mcp-adapters] 转换为 BaseTool 工具箱...")
             langchain_tools = await load_mcp_tools(session)
+            
+            # 打印当前反射感知到的所有工具名称
+            print(f"🔍 [DEBUG-MCP-TOOLS] 当前感知到的可用工具矩阵: {[t.name for t in langchain_tools]}")
             
             # 动态检索被 MCP 反射上来的核心检索工具
             search_tool = next((t for t in langchain_tools if "everything" in t.name or "search" in t.name), None)
@@ -90,16 +81,19 @@ async def fetch_news_via_true_mcp_protocol(search_query: str, limit: int) -> lis
             # -----------------------------------------------------------------
             # 🎯【MCP 生命周期：断点 5/5】工具跨系统物理打击（Call Tool Execution）
             # -----------------------------------------------------------------
-            # 🚀【这是纯正 MCP 的第三大铁证！】
-            # 当调用 `search_tool.ainvoke` 时，Python 客户端会严格按照 MCP 的 Schema 规范，
-            # 序列化参数，向管道内定向发射一发 `tools/call` JSON-RPC 电报。
-            # 远端 Node.js 大坝在捕获到这发高维电报后，开始真正在后台调动算力、击穿 NewsAPI 大库，
-            # 并最终将数据打包成标准的 TextContent 强类型节点流通过网络管道回传！
             print(f"🔥 [M7-MCP-EXECUTE] 正式激活真 MCP 工具跨系统穿透打击: [{search_query}]")
-            tool_result = await search_tool.ainvoke({"q": search_query, "pageSize": limit * 2})
+            
+            try:
+                tool_result = await search_tool.ainvoke({"q": search_query, "pageSize": limit * 2})
+                # 🛠️【DEBUG 核心日志 1】打印工具调用的原生强类型返回值类型和摘要
+                print(f"📡 [DEBUG-EXECUTE] 工具调用完成。返回对象类型: {type(tool_result)}")
+                print(f"📄 [DEBUG-EXECUTE] 返回对象原生 String 表达: {str(tool_result)[:1000]}") # 打印前1000个字符防止爆屏
+            except Exception as e:
+                print(f"❌ [DEBUG-EXECUTE-ERROR] MCP 工具执行阶段触发致命异动! 堆栈如下:")
+                traceback.print_exc()
+                tool_result = None
             
             # 🚀🚀🚀【自适应全兼容物理打捞盾】🚀🚀🚀
-            # 不管 LangChain 怎么封装，强行把它转为文本或者打捞核心内容
             json_str = ""
             if isinstance(tool_result, str):
                 json_str = tool_result
@@ -116,58 +110,74 @@ async def fetch_news_via_true_mcp_protocol(search_query: str, limit: int) -> lis
                 else:
                     json_str = str(first_node)
             else:
-                json_str = str(tool_result)
+                json_str = str(tool_result) if tool_result is not None else ""
+
+            # 🛠️【DEBUG 核心日志 2】查看打捞盾提取出来的最内层纯文本/JSON 字符串
+            print(f"🛡️ [DEBUG-SHIELD] 物理打捞盾自适应解包后的纯文本片段 (前500字): {json_str[:500]}")
 
             # 强行提取出最内部的 articles 数组
             raw_results = []
             try:
-                parsed_data = json.loads(json_str)
-                if isinstance(parsed_data, dict):
-                    raw_results = parsed_data.get("articles", [])
-                elif isinstance(parsed_data, list):
-                    raw_results = parsed_data
-            except Exception:
+                if json_str:
+                    parsed_data = json.loads(json_str)
+                    if isinstance(parsed_data, dict):
+                        raw_results = parsed_data.get("articles", [])
+                    elif isinstance(parsed_data, list):
+                        raw_results = parsed_data
+            except Exception as p_err:
+                print(f"⚠️ [DEBUG-PARSE-ERR] 第一阶段标准 JSON 反序列化失败: {p_err}. 尝试二次模糊硬解...")
                 try:
                     start_idx = json_str.find('{"status"')
                     if start_idx != -1:
                         parsed_data = json.loads(json_str[start_idx:])
                         raw_results = parsed_data.get("articles", [])
-                except:
-                    print("⚠️ [M7-PARSE-WARN] 数据流二次硬解失效。")
+                except Exception as p_err_2:
+                    print(f"❌ [DEBUG-PARSE-ERR] 第二阶段模糊硬解同样失效: {p_err_2}")
                     pass
 
-            # 极端防御防御线：如果真 MCP 解析路径出现深层结构错位，触发一次内部全自动降维打捞机制
+            print(f"📊 [DEBUG-DATA-FLOW] 经由 MCP 协议管道打捞出的原始文章数: {len(raw_results)}")
+
             # 极端防御防御线：如果真 MCP 解析路径出现深层结构错位，触发一次内部全自动降维打捞机制
             if not raw_results:
-                print("⚠️ [M7-ADAPTER-REDIRECT] 监测到数据被多层封装。正在通过直连会话打捞远端大坝...")
-                import requests
+                print("⚠️ [M7-ADAPTER-REDIRECT] 监测到数据被多层封装或 MCP 未吐出数据。正在通过直连会话打捞远端大坝...")
                 
-                # 🟢 完美并网风控：只从环境变量读取。如果读取不到，不要给任何默认明文 Key，直接优雅提示并熔断
+                # 🟢 完美并网风控：只从环境变量读取。
                 apiKey = os.environ.get("NEWSAPI_API_KEY")
                 if not apiKey:
                     print("❌ [M7-FATAL] 未在环境变量中侦测到 NEWSAPI_API_KEY，直连打捞熔断终止。")
-                    # 如果在函数内部，可选择直接 return []
                 else:
                     direct_url = f"https://newsapi.org/v2/everything?q={search_query}&language=en&sortBy=publishedAt&pageSize={limit * 2}"
+                    print(f"🌐 [DEBUG-REDIRECT] 发起直连灾备请求: {direct_url}")
                     try:
+                        import requests
                         res = requests.get(direct_url, headers={"X-Api-Key": apiKey, "User-Agent": "M7-Engine"}, timeout=5)
-                        raw_results = res.json().get("articles", [])
+                        print(f"📡 [DEBUG-REDIRECT] 直连状态码: {res.status_code}")
+                        res_json = res.json()
+                        raw_results = res_json.get("articles", [])
+                        if not raw_results and "message" in res_json:
+                            print(f"❌ [DEBUG-REDIRECT-MSG] 远端新闻服务平台报错信息: {res_json.get('message')}")
                     except Exception as http_err:
                         print(f"⚠️ [M7-ADAPTER-REDIRECT] 穿透打捞突发异动: {http_err}")
                         pass
 
             # 数据清洗与格式化组装
+            print(f"🧼 [DEBUG-CLEAN] 开始对 {len(raw_results)} 条原始节点数据进入过滤清洗漏斗...")
             for idx, item in enumerate(raw_results, 1):
                 if len(news_items) >= limit: 
                     break
                     
                 title = item.get("title")
                 if title == "[Removed]" or not title: 
+                    # 某些新闻过期或被删时 NewsAPI 会返回 title="[Removed]"
                     continue
                 
-                summary = str(item.get("description") or item.get("content") or "无细分摘要明细").strip()
-                if len(summary) < 10: 
-                    continue
+                summary = str(item.get("description") or item.get("content") or "").strip()
+                if not summary or summary == "None" or len(summary) < 10: 
+                    # 稍微放宽限制，若没有细分明细则用标题或兜底文本填充，确保不因长度原因被彻底过滤掉
+                    if title:
+                        summary = "未检索到细分摘要明细，请点击原文链接查看详情。"
+                    else:
+                        continue
                 
                 link = item.get("url", "")
                 source_name = item.get("source", {}).get("name", "Global Financial")
