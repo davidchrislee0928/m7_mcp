@@ -276,15 +276,42 @@ with strl.sidebar:
 # =====================================================================
 # 📊【天幕墙大盘核心原生态指数矩阵渲染】
 # =====================================================================
-index_snapshot = {"GSPC": {"val": "0.00", "arrow": "—", "color": "#58a6ff", "pct": "0.00%"}, "DJI": {"val": "0.00", "arrow": "—", "color": "#58a6ff", "pct": "0.00%"}, "IXIC": {"val": "0.00", "arrow": "—", "color": "#58a6ff", "pct": "0.00%"}}
+# =====================================================================
+# 📊【天幕墙大盘核心原生态指数矩阵渲染】(铁血网络自愈·大坝空仓抢救并网版)
+# =====================================================================
+index_snapshot = {
+    "GSPC": {"val": "0.00", "arrow": "—", "color": "#58a6ff", "pct": "0.00%"}, 
+    "DJI": {"val": "0.00", "arrow": "—", "color": "#58a6ff", "pct": "0.00%"}, 
+    "IXIC": {"val": "0.00", "arrow": "—", "color": "#58a6ff", "pct": "0.00%"}
+}
 index_map = {"GSPC": "^GSPC", "DJI": "^DJI", "IXIC": "^IXIC"}
 
 for idx_key, idx_ticker in index_map.items():
     idx_parquet = os.path.join(DATA_CACHE_DIR, f"{idx_ticker.replace('^', '').lower()}_10y.parquet")
     df_idx = None
+    
+    # 轨道一：尝试打捞本地冷资产大坝
     if os.path.exists(idx_parquet):
-        try: df_idx = pd.read_parquet(idx_parquet)
-        except: pass
+        try: 
+            df_idx = pd.read_parquet(idx_parquet)
+        except: 
+            pass
+            
+    # 🚀🔥轨道二【铁血网络自愈拦截网关】：如果大坝被粉碎为空仓，强行穿透网络去 yfinance 索要大盘最新大数
+    if df_idx is None or df_idx.empty:
+        try:
+            print(f"📡 [M7-INDEX-RECOVERY] 探测到大盘数据断流！正在现场物理打捞网络实时指数: {idx_ticker}")
+            # 拉取最近5天的日K，确保足够计算涨跌幅
+            df_idx = yf.download(idx_ticker, period="5d", interval="1d", auto_adjust=True)
+            
+            # 数据打捞成功后，顺手重新固化落盘，为下一次冷启动无感读取修筑大坝
+            if not df_idx.empty:
+                df_idx.to_parquet(idx_parquet)
+                print(f"💾 [M7-INDEX-RECOVERY] 成功为大盘指数 [{idx_ticker}] 重新建立本地持久化二进制大坝资产。")
+        except Exception as net_idx_err:
+            print(f"❌ [M7-INDEX-RECOVERY] 穿透打捞大盘网络指数失败: {net_idx_err}")
+
+    # 统一计算渲染层
     if df_idx is not None and not df_idx.empty:
         try:
             clean_series = df_idx["Close"].dropna().values.flatten()
@@ -292,11 +319,20 @@ for idx_key, idx_ticker in index_map.items():
                 current_close, prev_close = float(clean_series[-1]), float(clean_series[-2])
                 change_pct = ((current_close - prev_close) / prev_close) * 100
                 arrow, color_code = ("▲", "#00FF00") if change_pct > 0 else (("▼", "#FF4444") if change_pct < 0 else ("—", "#58a6ff"))
-                index_snapshot[idx_key] = {"val": f"{current_close:,.2f}", "arrow": arrow, "color": color_code, "pct": f"{change_pct:+.2f}%"}
-        except: pass
+                index_snapshot[idx_key] = {
+                    "val": f"{current_close:,.2f}", 
+                    "arrow": arrow, 
+                    "color": color_code, 
+                    "pct": f"{change_pct:+.2f}%"
+                }
+        except Exception as calc_err:
+            print(f"⚠️ [M7-INDEX-RENDER] 解算大盘波动率发生异动: {calc_err}")
 
+# 后续的 macro_cards_html 生成及 HTML 渲染逻辑保持完全不变
 macro_cards_html = ""
 idx_labels = {"GSPC": "S&P 500 (标普大盘)", "DJI": "DOW 30 (道指工业)", "IXIC": "NASDAQ (纳指综合)"}
+# ... 保持你 app.py 原有代码继续往下跑即可 ...
+
 for k, item in index_snapshot.items():
     macro_cards_html += f'<div style="flex: 1; min-width: 140px; background-color: #1a2333; padding: 8px 12px; border-radius: 6px; border-top: 3px solid {item["color"]}; box-shadow: 0 4px 6px rgba(0,0,0,0.4);"><p style="margin: 0 0 4px 0; color: #ffcc00; font-size: 11px; font-weight: bold; font-family: sans-serif; white-space: nowrap;">{idx_labels[k]}</p><p style="margin: 0; color: {item["color"]}; font-size: 14px; font-weight: bold; font-family: monospace; white-space: nowrap;"><span style="font-size:10px; margin-right:2px;">{item["arrow"]}</span>{item["val"]} <span style="font-size:9px; font-weight:normal;">({item["pct"]})</span></p></div>'
 
