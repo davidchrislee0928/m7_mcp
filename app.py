@@ -245,16 +245,34 @@ with strl.sidebar:
     
     atomic_sidebar_prices_gateway(selected_tickers)
     
+    # =====================================================================
+    # ✂️🔥【铁血物理清盘网关】：直接穿透容器大坝，全量格式化持久化缓存文件夹
+    # =====================================================================
     if strl.button("🗑️ 物理粉碎死锁缓存 (校准当日日期)", use_container_width=True):
+        # 1. 强行重置 Streamlit 内存状态机
         strl.session_state["audit_cache"] = ""
         for key in list(strl.session_state.keys()):
-            if "decision_" in key: del strl.session_state[key]
-        if os.path.exists(LIVE_SNAPSHOT_PATH):
-            try: os.remove(LIVE_SNAPSHOT_PATH)
-            except: pass
-        strl.success("所有缓存与快照已全数清空！")
+            if "decision_" in key: 
+                del strl.session_state[key]
+                
+        # 2. 动用操作系统核心权限，暴力清空大坝存储盘下的 data_cache 文件夹
+        if os.path.exists(DATA_CACHE_DIR):
+            import shutil
+            try:
+                # 把老文件夹连根拔起
+                shutil.rmtree(DATA_CACHE_DIR)
+                print(f"🧹 [M7-DOCK-CLEAN] 物理大坝持久化目录 [{DATA_CACHE_DIR}] 已被全量格式化！")
+                
+                # 重新建立一个完璧纯净的空文件夹，供程序无缝并网写入新缓存
+                os.makedirs(DATA_CACHE_DIR, exist_ok=True)
+                try: os.chmod(DATA_CACHE_DIR, 0o777)
+                except: pass
+            except Exception as e:
+                print(f"❌ [M7-DOCK-CLEAN] 穿透物理大坝失败: {e}")
+                
+        strl.success("💥 报告长官：持久化大坝资产已全数彻底粉碎！空仓重新点火中...")
+        time.sleep(1)
         strl.rerun()
-
 # =====================================================================
 # 📊【天幕墙大盘核心原生态指数矩阵渲染】
 # =====================================================================
