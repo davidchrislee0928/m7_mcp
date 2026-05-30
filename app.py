@@ -204,6 +204,9 @@ with clock_col:
     atomic_live_clock_gateway()
 
 # 🚀🔥【核心降维回嵌】：工业级四色数据主权物理验证指示灯大阵
+# =====================================================================
+# 🚀🔥【核心降维回嵌】：工业级四色数据主权物理验证指示灯大阵 (大小写双规对齐)
+# =====================================================================
 test_target = "GOOGL" 
 
 macro_light = "🟢 宏观经济指标大坝 [已并网]" if global_cached_macro else "🔴 宏观经济数据断流 [未接入]"
@@ -213,8 +216,15 @@ try:
 except:
     news_light = "🔴 舆情雷达网络阻断 [熔断]"
 
-kline_file_check = os.path.join(DATA_CACHE_DIR, f"{test_target.lower()}_10y.parquet")
-kline_light = "🟢 10y二进制K线大坝 [落盘存储]" if os.path.exists(kline_file_check) else "🔴 10yK线Parquet大坝 [未同步]"
+# 🚀🔥【铁血双轨自愈探测】：同时扫描全大写和全小写物理文件名，防止 Linux 容器下大小写错位锁死
+kline_lower = os.path.join(DATA_CACHE_DIR, f"{test_target.lower()}_10y.parquet")
+kline_upper = os.path.join(DATA_CACHE_DIR, f"{test_target.upper()}_10y.parquet")
+
+# 只要大写的物理文件或者小写的物理文件有一个存在，就判定并网成功！
+if os.path.exists(kline_lower) or os.path.exists(kline_upper):
+    kline_light = "🟢 10y二进制K线大坝 [落盘存储]"
+else:
+    kline_light = "🔴 10yK线Parquet大坝 [未同步]"
 
 fmp_file_check = os.path.join(DATA_CACHE_DIR, f"fmp_cache_{test_target}.json")
 fmp_light = "🟢 FMP基本面财务 short评 [有持久化缓存]" if os.path.exists(fmp_file_check) else "🔴 FMP离线资产大坝 [未建立]"
