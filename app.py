@@ -419,15 +419,29 @@ with tab_market:
             
         local_json_path = os.path.join(DATA_CACHE_DIR, f"fmp_cache_{audit_target}.json")
         # ... 后面保持你原有的新闻和财报大坝代码不变 ...
+        # -----------------------------------------------------------------
+        # 🚨 🔥【布局提权】：第一层 - 纯净上置 2 列前沿雷达新闻网关 (铁血标题去重版)
+        # -----------------------------------------------------------------
         news_col1, news_col2 = strl.columns(2)
         with news_col1:
             strl.subheader(f"🏢 {audit_target} 最新关联热点摘要")
-            stock_news_list = news_engine.get_latest_news(query_type="stock", topic=audit_target, limit=5)
+            # 🚀🔥【提权修改点一】：limit 统一焊死升级为 7
+            stock_news_list = news_engine.get_latest_news(query_type="stock", topic=audit_target, limit=7)
             
             if not stock_news_list:
                 strl.caption("📡 暂无关联实时个股新闻流")
             else:
+                # 🚀🔥【核心自愈防护线】：标题去重唯一性黑洞
+                seen_stock_titles = set()
+                
                 for item in stock_news_list:
+                    title_clean = str(item.get('title', '')).strip()
+                    
+                    # 拦截检查：如果标题已经粉碎展示过，或者是 Removed 挂件，直接斩断不输出
+                    if not title_clean or title_clean == "[Removed]" or title_clean in seen_stock_titles:
+                        continue
+                    seen_stock_titles.add(title_clean) # 标记捕获
+                    
                     # 🛡️ 内存硬核隔离重置
                     raw_time = None
                     clean_time = "2026-05-28"
@@ -444,7 +458,6 @@ with tab_market:
                     
                     if raw_time:
                         t_str = str(raw_time).replace("T", " ").replace("Z", "").strip()
-                        # 🚀🔥【铁血对齐】：如果是英文日期格式，禁止暴力截断；如果是标准ISO时间，才保留到分钟
                         if any(m in t_str for m in ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]):
                             clean_time = t_str
                         else:
@@ -463,21 +476,34 @@ with tab_market:
                         elif "Wall Street Journal" in summary_text or "WSJ" in summary_text: src_name = "Wall Street Journal"
                         else: src_name = "PR Newswire"
                     
-                    with strl.expander(f"⏱️ [{clean_time}] 📌 {item.get('title', '未命名舆情序列')}", expanded=False):
+                    with strl.expander(f"⏱️ [{clean_time}] 📌 {title_clean}", expanded=False):
                         strl.markdown(f"**📅 发布时刻:** <span style='color:#ffaa00; font-weight:bold;'>{clean_time} (美东/世界时)</span>", unsafe_allow_html=True)
                         strl.markdown("---")
+                        strl.markdown(f"**📝 舆情摘要短卷:** 📡 M7 情报监测中心 (真·MCP 官方网络通道)")
+                        strl.markdown(f"**信源機構:** {src_name}")
                         strl.markdown(summary_text)
                         if "url" in item and item["url"]:
                             strl.markdown(f"🔗 [查看实时的完整信源长卷]({item['url']})")
                     
         with news_col2:
             strl.subheader("🌍 全球地缘政治前沿动向")
-            geo_news_list = news_engine.get_latest_news(query_type="geopolitics", limit=5)
+            # 🚀🔥【提权修改点二】：limit 统一焊死升级为 7
+            geo_news_list = news_engine.get_latest_news(query_type="geopolitics", limit=7)
             
             if not geo_news_list:
                 strl.caption("📡 暂无地缘政治前沿快讯")
             else:
+                # 🚀🔥【核心自愈防护线】：地缘标题去重唯一性黑洞
+                seen_geo_titles = set()
+                
                 for item in geo_news_list:
+                    title_clean = str(item.get('title', '')).strip()
+                    
+                    if not title_clean or title_clean == "[Removed]" or title_clean in seen_geo_titles:
+                        continue
+                    seen_geo_titles.add(title_clean)
+                    
+                    # 地缘时空内存强制清空隔离
                     raw_time = None
                     clean_time = "2026-05-28"
                     
@@ -508,13 +534,14 @@ with tab_market:
                         elif "Europa" in summary_text: src_name = "Europa.eu"
                         else: src_name = "Forbes"
                     
-                    with strl.expander(f"⏱️ [{clean_time}] ⚠️ {item.get('title', '未命名地缘异动')}", expanded=False):
+                    with strl.expander(f"⏱️ [{clean_time}] ⚠️ {title_clean}", expanded=False):
                         strl.markdown(f"**📅 爆发时刻:** <span style='color:#ff5555; font-weight:bold;'>{clean_time}</span>", unsafe_allow_html=True)
                         strl.markdown("---")
+                        strl.markdown(f"**📝 突发情报摘要:** 📡 M7 情报监测中心 (真·MCP 官方网络通道)")
+                        strl.markdown(f"**信源機構:** {src_name}")
                         strl.markdown(summary_text)
                         if "url" in item and item["url"]:
-                            strl.markdown(f"🔗 [穿透情报链路原件]({item['url']})")
-                    
+                            strl.markdown(f"🔗 [穿透情报链路原件]({item['url']})")                    
         strl.markdown("---")
 
         # -----------------------------------------------------------------
@@ -669,7 +696,9 @@ with tab_decision:
                     import re
 
                     # 🚀🔥【个股舆情全自愈并网舱】
-                    raw_stock_news = news_engine.get_latest_news(query_type="stock", topic=decision_target, limit=5)
+                    # 🚀🔥【个股舆情全自愈并网舱】
+                # 🚀🔥【提权修改点三】：决策舱同样放开到 limit=7
+                    raw_stock_news = news_engine.get_latest_news(query_type="stock", topic=decision_target, limit=7)
                     processed_stock_news = []
                     if raw_stock_news:
                         for n in raw_stock_news:
@@ -698,7 +727,7 @@ with tab_decision:
                                 processed_stock_news.append(n)
 
                     # 🚀🔥【地缘政治前沿全自愈并网舱】
-                    raw_geo_news = news_engine.get_latest_news(query_type="geopolitics", limit=5)
+                    raw_geo_news = news_engine.get_latest_news(query_type="geopolitics", limit=7)
                     processed_geo_news = []
                     if raw_geo_news:
                         for n in raw_geo_news:
