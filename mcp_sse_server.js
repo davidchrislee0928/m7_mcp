@@ -13,14 +13,13 @@ const app = express();
 const activeTransports = new Map();
 
 // 🎯【自适应多实例工厂函数】
-// 每次有新客户端连入时动态调用，为其创建全新、原汁原味、100% 隔离的官方标准状态机
 function createMcpServerInstance() {
     const server = new Server(
         { name: "mcp-cluster-node", version: "2.0.0" },
         { capabilities: { tools: {} } }
     );
 
-    // A. 动态绑定工具声明
+    // A. 动态绑定工具声明 (🚀🔥开放 sortBy 控制权给 Python)
     server.setRequestHandler(ListToolsRequestSchema, async () => {
         return {
             tools: [
@@ -31,7 +30,9 @@ function createMcpServerInstance() {
                         type: "object",
                         properties: {
                             q: { type: "string", description: "Keywords or phrases to search for in the news articles." },
-                            pageSize: { type: "number", description: "The number of results to return (max 100)." }
+                            pageSize: { type: "number", description: "The number of results to return (max 100)." },
+                            // 💡 核心新增：告诉 Python 端，本工具完全接受自定义排序！
+                            sortBy: { type: "string", description: "The order to sort the articles in. Possible options: relevancy, popularity, publishedAt." }
                         },
                         required: ["q"]
                     }
@@ -50,10 +51,14 @@ function createMcpServerInstance() {
         const query = args.q || "market"; 
         const pageSize = args.pageSize || 10;
         
-        const apiKey = process.env.NEWSAPI_API_KEY ;
-        const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&language=en&sortBy=publishedAt&pageSize=${pageSize}`;
+        // 🚀🔥核心截获：优先读取 Python 发来的排序指令，如果不发则默认强制 publishedAt
+        const sortBy = args.sortBy || "publishedAt"; 
         
-        console.log(`📡 [M7-NODE-ACTIVE] 真 MCP 击穿网络大坝 -> 检索词: [${query}] | 额度: [${pageSize}]`);
+        const apiKey = process.env.NEWSAPI_API_KEY ;
+        // 将 sortBy 动态拼入 URL，真正实现由外向内的物理击穿
+        const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&language=en&sortBy=${sortBy}&pageSize=${pageSize}`;
+        
+        console.log(`📡 [M7-NODE-ACTIVE] 真 MCP 击穿网络大坝 -> 检索词: [${query}] | 额度: [${pageSize}] | 排序规则: [${sortBy}]`);
 
         try {
             const response = await globalThis.fetch(url, {
@@ -75,7 +80,6 @@ function createMcpServerInstance() {
 }
 
 // 🎯【全局单手柄骨架存根】
-// 保持你原版完全正确的单变量路由代理骨架，作为 Express POST 入口的物理透传桥梁
 let transportInstance = null;
 
 app.get("/sse", async (req, res) => {
@@ -106,7 +110,7 @@ app.post("/message", async (req, res) => {
     const targetTransport = activeTransports.get(sessionId) || transportInstance;
 
     if (targetTransport) {
-        // 5. 0字节污染，直接丢给该专属传输器实例去解包分发，官方底层会自动调度它关联的那个隔离状态机！
+        // 5. 0字节污染，直接丢给该专属传输器实例去解包分发
         await targetTransport.handlePostMessage(req, res);
     } else {
         res.status(400).send("Session cluster registry not ready");

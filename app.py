@@ -5,7 +5,7 @@ import sys
 import json
 import time
 import threading
-import random  # 🚀 强力注入随机数发生器，用于休盘期高频动态千分位脉冲测试
+import random  # 🚀 强力激活随机数发生器，用于休盘期高频动态千分位脉冲及后台减震
 from datetime import datetime
 import pytz
 import pandas as pd
@@ -46,7 +46,7 @@ NASDAQ_100_POOL = sorted(list(set([
 strl.set_page_config(page_title="M7-ALPHA 量化多智能体终端", page_icon="📊", layout="wide")
 
 # =====================================================================
-# 🧠 🛡️ 【全局共享进程内存大坝】
+# 🧠 🛡️ 【全局共享进程内存大坝】 (工业级 429 智能防冲击抗震自愈版)
 # =====================================================================
 if "M7_GLOBAL_STATIC_MEM" not in globals():
     globals()["M7_GLOBAL_STATIC_MEM"] = {}
@@ -55,11 +55,23 @@ if "M7_GLOBAL_STATIC_MEM" not in globals():
 # 🚀🔥【动态主权个股锁】：用于跨标签页动态校准顶部四色指示灯
 if "M7_CURRENT_AUDIT_TICKER" not in strl.session_state:
     strl.session_state["M7_CURRENT_AUDIT_TICKER"] = "GOOGL" 
+
+if "M7_YFINANCE_COOLDOWN_UNTIL" not in globals():
+    globals()["M7_YFINANCE_COOLDOWN_UNTIL"] = 0.0
     
 def m7_async_market_core_pump():
-    """独立于 Streamlit 主进程之外的操作系统级守护线程"""
+    """独立于 Streamlit 主进程之外的操作系统级守护线程 (强效降噪去噪盾)"""
+    # 彻底杜绝 NameError，确保随机数减震网关安全点火
+    time.sleep(random.uniform(1.0, 3.0))
+    
     while True:
         try:
+            # 🛡️ 拦截门网：如果处于雅虎财经 429 抗震保护期，自动进入静默沙盒
+            current_now = time.time()
+            if current_now < globals()["M7_YFINANCE_COOLDOWN_UNTIL"]:
+                time.sleep(15)
+                continue
+
             ny_tz = pytz.timezone('America/New_York')
             now_ny = datetime.now(ny_tz)
             is_weekday = now_ny.weekday() < 5
@@ -78,8 +90,12 @@ def m7_async_market_core_pump():
                 for t in targets:
                     try:
                         ticker_obj = yf.Ticker(t)
+                        # 非交易期拉取 1d 降低高频索要开销，全面降低封锁概率
                         df_live = ticker_obj.history(period="1d", interval="1m" if is_open else "1d", auto_adjust=True)
-                        if df_live.empty: continue
+                        
+                        if df_live.empty: 
+                            raise RuntimeWarning("yfinance empty payload detected")
+                            
                         curr_p = float(df_live["Close"].dropna().values[-1])
                         
                         df_daily = ticker_obj.history(period="5d", interval="1d", auto_adjust=True)
@@ -99,17 +115,25 @@ def m7_async_market_core_pump():
                         snapshot_data[t] = pack
                         
                     except Exception as inner_err:
-                        print(f"后台双轨打捞 {t} 异常: {inner_err}")
+                        err_msg = str(inner_err).lower()
+                        # 核心防冲击卡死：一旦触发 429 频率超限，启动 300 秒时空冷冻隔离舱
+                        if "too many requests" in err_msg or "rate limited" in err_msg or "warning" in err_msg:
+                            print("🚨 [M7-PUMP-BLOCK] 侦测到 yfinance 防火墙阻断！激活抗震冷冻大坝 300 秒！")
+                            globals()["M7_YFINANCE_COOLDOWN_UNTIL"] = time.time() + 300.0
+                            break
+                        else:
+                            print(f"⚠️ [M7-PUMP-FLUTTER] 后台打捞 {t} 微幅抖动: {inner_err}")
                 
                 try:
                     with open(LIVE_SNAPSHOT_PATH, "w", encoding="utf-8") as wf:
                         json.dump(snapshot_data, wf, ensure_ascii=False, indent=2)
                 except: pass
             
-            time.sleep(5 if is_open else 20)
+            # 平抑非交易时间开销
+            time.sleep(10 if is_open else 60)
         except Exception as global_err:
-            print(f"大坝主循环异常: {global_err}")
-            time.sleep(10)
+            print(f"⚠️ [M7-PUMP-GLOBAL-WARN] 大坝主循环抖动: {global_err}")
+            time.sleep(30)
 
 if "M7_THREAD_LOCK" not in globals():
     globals()["M7_THREAD_LOCK"] = True
@@ -186,7 +210,7 @@ def atomic_sidebar_prices_gateway(selected_list):
                 strl.caption(f"⏳ {ticker} 正在接入物理核心数据链...")
 
 # =====================================================================
-# 🗂️ 【主权命名解耦】：强力执行全局命名锁死，彻底打碎变量未定义 NameError 漏洞
+# 🗂️ 【主权命名解耦】：强力执行全局命名锁死
 # =====================================================================
 global_cached_macro = {}
 macro_data = {}  
@@ -343,7 +367,7 @@ with tab_tech:
         fig_nasdaq = generate_m7_clean_charts("^IXIC", period_choice, time_range_mode=time_mode)
         if fig_nasdaq is not None: strl.plotly_chart(fig_nasdaq, width="stretch", key=f"t_nasdaq_base_{period_choice}_{time_mode}")
     strl.markdown("#### 🏢 标的成份股技术面板")
-    if not selected_tickers: strl.info("💡 提示：请在left侧控制中心选择标的。")
+    if not selected_tickers: strl.info("💡 提示：请在左侧控制中心选择标的。")
     else:
         for ticker in selected_tickers:
             with strl.expander(f"展开/收起 【{ticker}】 技术面看板", expanded=True):
@@ -351,7 +375,7 @@ with tab_tech:
                 if fig is not None: strl.plotly_chart(fig, width="stretch", key=f"t_{ticker}_{period_choice}_{time_mode}")
 
 # =====================================================================
-# 🔮 智能体基本面审计长卷 (前台完美对接独立 url 字段，高亮渲染跳转超链接)
+# 🔮 智能体基本面审计长卷 (前台呈现 7 条，独立超链接跳转)
 # =====================================================================
 with tab_market:
     if not selected_tickers: 
@@ -375,9 +399,8 @@ with tab_market:
                     title_clean = str(item.get('title', '未命名舆情序列')).strip()
                     summary_text = item.get("summary", "无摘要详情")
                     src_name = item.get("source_name", "Global News")
-                    news_url = item.get("url", "")  # 🚀 从独占字段打捞
+                    news_url = item.get("url", "")
                     
-                    # 1️⃣ 物理提取并格式化时间戳
                     raw_time = item.get("publishedAt")
                     clean_time = "2026-05-28"
                     
@@ -393,7 +416,6 @@ with tab_market:
                         strl.markdown("---")
                         strl.markdown(f"**信源機構:** `{src_name}`")
                         strl.markdown(summary_text)
-                        # 🚀🔥【前台链接完美归来】：利用独立解耦通道安全输出
                         if news_url:
                             strl.markdown(f"🔗 [查看实时的完整信源长卷]({news_url})")
                     
@@ -410,7 +432,6 @@ with tab_market:
                     src_name = item.get("source_name", "M7地缘雷达")
                     news_url = item.get("url", "")
                     
-                    # 1️⃣ 物理时间打捞
                     raw_time = item.get("publishedAt")
                     clean_time = "2026-05-28"
                     
@@ -432,7 +453,7 @@ with tab_market:
         strl.markdown("---")
 
         # -----------------------------------------------------------------
-        # 💾 第二层 - 沉底固化的本地财报大坝冷资产管理中心
+        # 💾 本地财报大坝冷资产管理中心
         # -----------------------------------------------------------------
         strl.markdown("### 📝 多智能体基本面联审研报")
         local_json_path = os.path.join(DATA_CACHE_DIR, f"fmp_cache_{audit_target}.json")
@@ -445,7 +466,7 @@ with tab_market:
                     if "audit_report" in disk_cache and disk_cache["audit_report"].strip():
                         loaded_historical_report = disk_cache["audit_report"]
             except Exception as read_disk_err:
-                print(f"⚠️ [M7-FRONTEND-WARN] 穿透物理大坝打捞历史研报失败: {read_disk_err}")
+                print(f"⚠️ 穿透物理大坝打捞历史研报失败: {read_disk_err}")
 
         if loaded_historical_report and ("市值为0" in loaded_historical_report or "原始市值为0" in loaded_historical_report):
             try:
@@ -675,6 +696,5 @@ with tab_decision:
                     if not clean_text: clean_text = dec_res
                 else: clean_text = str(dec_res)
                 
-                # 🚀🔥【第三页铁血清洗层】：网页端去噪
                 clean_decision_text = clean_text.replace("<br>", " ").replace("<br />", " ").replace("<br/>", " ")
                 strl.markdown(clean_decision_text)
