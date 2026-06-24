@@ -273,7 +273,7 @@ with strl.sidebar:
         strl.rerun()
 
 # =====================================================================
-# 📊【天幕墙大盘核心原生态指数矩阵渲染】
+# 📊【天幕墙大盘核心原生态指数矩阵渲染】（已修复天级缓存死锁）
 # =====================================================================
 index_snapshot = {
     "GSPC": {"val": "0.00", "arrow": "—", "color": "#58a6ff", "pct": "0.00%"}, 
@@ -281,19 +281,35 @@ index_snapshot = {
     "IXIC": {"val": "0.00", "arrow": "—", "color": "#58a6ff", "pct": "0.00%"}
 }
 index_map = {"GSPC": "^GSPC", "DJI": "^DJI", "IXIC": "^IXIC"}
+today_date_str = datetime.now(pytz.timezone('America/New_York')).strftime("%Y-%m-%d")
 
 for idx_key, idx_ticker in index_map.items():
     idx_parquet = os.path.join(DATA_CACHE_DIR, f"{idx_ticker.replace('^', '').lower()}_10y.parquet")
     df_idx = None
+    
+    # 🕵️‍♂️ 引入硬核天级修改时间戳验证网关
     if os.path.exists(idx_parquet):
-        try: df_idx = pd.read_parquet(idx_parquet)
-        except: pass
+        file_mod_date = datetime.fromtimestamp(os.path.getmtime(idx_parquet)).strftime("%Y-%m-%d")
+        if file_mod_date == today_date_str:
+            try: 
+                df_idx = pd.read_parquet(idx_parquet)
+            except: 
+                pass
+
+    # 📡 若无今日缓存，穿透打捞最新全量因子
     if df_idx is None or df_idx.empty:
         try:
+            # 下载 5 天历史确保能拿到最新前值进行同比/环比解算
             df_idx = yf.download(idx_ticker, period="5d", interval="1d", auto_adjust=True)
-            if not df_idx.empty: df_idx.to_parquet(idx_parquet)
-        except: pass
+            if not df_idx.empty:
+                df_idx = df_idx.dropna(how='all')
+                if isinstance(df_idx.columns, pd.MultiIndex):
+                    df_idx.columns = df_idx.columns.get_level_values(0)
+                df_idx.to_parquet(idx_parquet, engine="pyarrow")
+        except Exception as net_idx_err:
+            print(f"❌ 大盘股指网络打捞断流 [{idx_ticker}]: {net_idx_err}")
 
+    # 📐 动态重组高精收盘变动率
     if df_idx is not None and not df_idx.empty:
         try:
             clean_series = df_idx["Close"].dropna().values.flatten()
@@ -302,8 +318,8 @@ for idx_key, idx_ticker in index_map.items():
                 change_pct = ((current_close - prev_close) / prev_close) * 100
                 arrow, color_code = ("▲", "#00FF00") if change_pct > 0 else (("▼", "#FF4444") if change_pct < 0 else ("—", "#58a6ff"))
                 index_snapshot[idx_key] = {"val": f"{current_close:,.2f}", "arrow": arrow, "color": color_code, "pct": f"{change_pct:+.2f}%"}
-        except: pass
-
+        except Exception as calc_err: 
+            print(f"⚠️ 矩阵降维解算异常 [{idx_ticker}]: {calc_err}")
 macro_cards_html = ""
 idx_labels = {"GSPC": "S&P 500 (标普大盘)", "DJI": "DOW 30 (道指工业)", "IXIC": "NASDAQ (纳指综合)"}
 for k, item in index_snapshot.items():
@@ -543,16 +559,21 @@ with tab_decision:
                                 processed_geo_news.append(n_copy)
                             else: processed_geo_news.append(n)
 
-                    # 🚀🔥【彻底配合对齐】：将长官手动追加的情报独立透传到 decision_engine 的 urgent_intel 入参中，绝不污染 audit_text
+                    # 🚀🔥【决策网关终极对齐】：将今日同步刷新后的三大股指实时快照直接并网注入 macro_data
+                    merged_macro_context = globals()["macro_data"].copy()
+                    for idx_k, idx_v in index_snapshot.items():
+                        merged_macro_context[f"大盘指数_{idx_k}"] = f"{idx_v['val']} ({idx_v['pct']})"
+
+                    # 🚀 将合并后的最新宏观因子透传到决策引擎
                     raw_rep = decision_engine.generate_m7_weekly_decision(
                         ticker=decision_target, 
                         period_choice=period_choice, 
-                        macro_data=globals()["macro_data"], 
-                        audit_text=final_content,                     # 👈 纯正冷基本面
+                        macro_data=merged_macro_context,              # 👈 注入完美对齐的全新大盘快照因子
+                        audit_text=final_content,                     
                         stock_news=processed_stock_news, 
                         geo_news=processed_geo_news,
                         time_prompt=time_基准_prompt,
-                        urgent_intel=urgent_intelligence.strip()       # 👈 纯正长官突发热因子解耦并网
+                        urgent_intel=urgent_intelligence.strip()       
                     )
                     strl.session_state[f"decision_{decision_target}_{period_choice}"] = raw_rep
                     
