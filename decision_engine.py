@@ -1,4 +1,4 @@
-# decision_engine.py (M7-ALPHA Central Quant Strategic Decision Engine - Multi-Factor Synthesis & Dynamic Risk Calibration)
+# decision_engine.py (M7-ALPHA Central Quant Strategic Decision Engine - Multi-Factor Synthesis & Anti-HTML Leak)
 import os
 import json
 import random
@@ -129,7 +129,7 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
     ]) if geo_news else "No specific geopolitical news retrieved."
 
     # =====================================================================
-    # 🎯 全量定型 System Prompt 模板 (增加技术面金叉逻辑与第四段硬约束)
+    # 🎯 全量定型 System Prompt 模板 (严禁 HTML 裸露与技术逻辑错位)
     # =====================================================================
     prompt_context = f"""
     You are the Chief Quantitative Strategist and Fundamental Analyst at M7-ALPHA Capital. Generate an executive-grade trading decision report for ticker [{ticker}] for the upcoming trading week.
@@ -147,27 +147,27 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
          * For LONG/BULLISH: Stop-Loss < Entry Zone < Primary Take-Profit Target < Upside Acceleration Trigger.
          * For SHORT/BEARISH: Primary Take-Profit Target < Entry Zone < Stop-Loss < Downside Acceleration Trigger.
 
-    4. 📰【DATA SOURCE 6: HIGH-WEIGHT NEWS CATALYST EXTRACTION】:
-       DO NOT summarize all news into a single generic sentence! In Section 3, you MUST explicitly extract 2 to 4 SPECIFIC high-impact catalysts from Data Source 6, label their sentiment (e.g., `[Sentiment: EXTREMELY BULLISH 🟢]`), and detail their direct price implications.
+    4. 🚫 【ABSOLUTE NO HTML TAGS & ZERO LATEX RULE (CRITICAL)】:
+       - DO NOT EVER output raw HTML code or CSS inline tags (such as `<span style="...">`, `<div>`, `</span>`, etc.) inside the generated report body!
+       - Write sentiment labels in PLAIN TEXT with standard brackets and standard text emojis ONLY (e.g., write `[Sentiment: BEARISH 🔴]` or `[Sentiment: BULLISH 🟢]`).
+       - DO NOT use LaTeX syntax like `\\text{{...}}`, `\\frac{{...}}`, or LaTeX delimiters (`$`). Write plain text numbers and standard dollar signs!
 
-    5. 🎯【DIRECTIONAL & TRADE PARAMETER STRICT CONSISTENCY】:
+    5. 📰【DATA SOURCE 6: HIGH-WEIGHT NEWS CATALYST EXTRACTION】:
+       DO NOT summarize all news into a single generic sentence! In Section 3, you MUST explicitly extract 2 to 4 SPECIFIC high-impact catalysts from Data Source 6, label their sentiment using pure text (e.g., `[Sentiment: HIGH VOLATILITY / BEARISH 🔴]`), and detail their direct price implications.
+
+    6. 🎯【DIRECTIONAL & TRADE PARAMETER STRICT CONSISTENCY】:
        Your trade execution parameters MUST strictly align with the Executive Direction:
        - If Executive Direction is BULLISH or OVERWEIGHT: Tactical Entry Zone must be a buy level, Take-Profit must be ABOVE Entry, Stop-Loss must be BELOW Entry.
        - If Executive Direction is BEARISH or UNDERWEIGHT: DO NOT provide a long buy setup! State clearly that this is a risk-mitigation / position reduction stance, or provide short/hedging parameters where Take-Profit is BELOW Entry and Stop-Loss is ABOVE Entry.
 
-    6. ⚖️【REWARD-TO-RISK RATIO & PURE TEXT CALCULATION】:
+    7. ⚖️【REWARD-TO-RISK RATIO & PURE TEXT CALCULATION】:
        Use EXCLUSIVELY the term "Reward-to-Risk Ratio" (DO NOT write "Risk-Reward Ratio"). 
        Calculate it strictly as: Reward / Risk = (Take Profit - Entry) / (Entry - Stop Loss) [for Long] or (Entry - Take Profit) / (Stop Loss - Entry) [for Short].
-       * ZERO LATEX RULE: Output the calculation purely in plain text, e.g.: 
+       * Output the calculation purely in plain text, e.g.: 
          `Reward-to-Risk Ratio: 2.5:1 (Reward: $26.50 / Risk: $10.60)`
-       * ABSOLUTELY PROHIBITED: Do NOT write LaTeX code like `\\text{{...}}`, `\\frac{{...}}`, `\\$`, or `$$`. Write plain text numbers and standard dollar signs!
 
-    7. 📊【SECTION 1 MULTI-FACTOR EVIDENCE MATRIX STRICT TEMPLATE】:
+    8. 📊【SECTION 1 MULTI-FACTOR EVIDENCE MATRIX STRICT TEMPLATE】:
        Section 1 MUST contain a clean Markdown Table with EXACTLY 3 columns (`Factor Module`, `Data Input & Values`, `Impact on Valuation & Trend Signal`). DO NOT output pseudo-code boxes, ASCII block diagrams, or text lists for the matrix.
-
-    8. 🚫 【NO LATEX / HTML CODE EMBEDDING】:
-       DO NOT wrap prose or numbers in LaTeX characters (like $...$ or $$...$$). Write plain text and dollar figures directly (e.g., write "$18.22B" or "10%").
-       DO NOT insert HTML tags (like `<span style=...>` or `<div>`) inside the report prose or table cells. Output clean standard Markdown text.
 
     ------------------------------------------------------------------
     【INPUT FACTOR DATASETS】
@@ -225,7 +225,7 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
     - **Macro & Fed Liquidity Alignment**: [Deep analysis on Fed Rate, Inflation, Labor Data]
     - **Fundamental & Earnings Confluence**: [Synthesis of fundamental report & health assessment]
     - **News & Geopolitical Catalyst Impact**: 
-      * **Key High-Impact News Drivers**: [Explicitly cite 2 to 4 specific news events from Data Source 6 and analyze their direct price/sentiment impact on {ticker}]
+      * **Key High-Impact News Drivers**: [Explicitly cite 2 to 4 specific news events from Data Source 6 and analyze their direct price/sentiment impact on {ticker}. Use pure text brackets like [Sentiment: BEARISH 🔴]!]
       * **Geopolitical & Sentiment Alignment**: [Explicitly state market sentiment e.g., EXTREME EUPHORIA / RISK-ON or FEAR / RISK-OFF]
 
     ### 4️⃣ 【Actionable Trading Strategy & Risk Management Plan】
@@ -234,7 +234,7 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
     - **Trade Execution Parameters**:
       * **Tactical Entry Zone**: [Exact Entry Price or Range. Ensure it aligns correctly with MAs e.g., Layered limit orders between 20-Day MA and 5-Day MA]
       * **Primary Take-Profit Target**: [Exact Target Price]
-      * **Strict Stop-Loss Level**: [Exact Stop-Loss Price. MUST be positioned safely below the LOWER/STRONGER MA support line!]
+      * **Strict Stop-Loss Level**: [Exact Stop-Loss Price. MUST be positioned safely below the LOWER/STRONGER MA support line for Long!]
     - **Reward-to-Risk Ratio**: [Calculated precisely as (Target - Entry) / (Entry - Stop Loss), e.g., 2.5:1 (Reward: $26.50 / Risk: $10.60)]
     - **Dynamic Contingency Triggers**:
       * **Upside Acceleration Trigger**: [e.g., A daily close above $X opens secondary momentum toward $Y]
@@ -258,24 +258,28 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
             clean_res = str(raw_content)
 
         # =====================================================================
-        # 🧹【多重安全正则清理】彻底撕毁 LaTeX 语法与转义字符泄漏 BUG
+        # 🧹【多重安全正则清理】彻底剥离任何残留的 HTML 标签与 LaTeX 破坏符
         # =====================================================================
         # 1. 移除伪代码块标识
         clean_res = re.sub(r'```[a-zA-Z]*\n', '', clean_res)
         clean_res = clean_res.replace('```', '')
         
-        # 2. 剥离 \text{...} 和 \frac{...}{...} 算式裸露
+        # 2. 彻底撕毁大模型可能误吐出的 HTML 标签（如 <span style="...">...</span> 或 <div>）
+        clean_res = re.sub(r'<span[^>]*>(.*?)</span>', r'\1', clean_res, flags=re.IGNORECASE)
+        clean_res = re.sub(r'</?[a-zA-Z][^>]*>', '', clean_res)
+        
+        # 3. 剥离 \text{...} 和 \frac{...}{...} LaTeX 算式裸露
         clean_res = re.sub(r'\\text\{([^}]+)\}', r'\1', clean_res)
         clean_res = re.sub(r'\\frac\{([^}]+)\}\{([^}]+)\}', r'\1 / \2', clean_res)
         
-        # 3. 消除多余的反斜杠（如 \140.00 -> 140.00）
+        # 4. 消除多余的反斜杠（如 \140.00 -> 140.00）
         clean_res = re.sub(r'\\([0-9]+)', r'\1', clean_res)
         
-        # 4. 剥离包裹在句中多余的单美元符号（$200B -> 200B）
+        # 5. 剥离包裹在句中多余的单美元符号（$200B -> 200B）
         clean_res = re.sub(r'\$([^\$\n]{2,})\$', r'\1', clean_res)
         clean_res = re.sub(r'\*(Note:[^*]+)\*', r'\1', clean_res)
         
-        # 5. 最后统一进行美元符号转义，防止前端 Streamlit 将 $ 误认为 LaTeX 开始标识符
+        # 6. 最后统一进行美元符号转义，防止 Streamlit 前端将 $ 误识别为 LaTeX 渲染标识符
         clean_res = clean_res.replace('$', '\\$')
         
         return clean_res
