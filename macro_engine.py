@@ -105,7 +105,7 @@ def get_macro_indicators() -> dict:
             print(f"❌ [M7-MACRO] Error fetching [{key}] from Yahoo Finance: {yf_err}")
 
     fred_api_key = os.environ.get("FRED_API_KEY")
-    
+    print(f"FRED Key detected: {bool(fred_api_key)}")
     if fred_api_key:
         print(f"🔑 [M7-MACRO-FRED] Accessing FRED API with Key...")
         
