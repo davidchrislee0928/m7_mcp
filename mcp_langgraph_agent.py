@@ -273,7 +273,7 @@ def run_m7_audit(ticker_symbol: str, kline_period: str = "Daily"):
         
         try:
             llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash",  # 👈 使用配额相对宽裕的模型，降低触发 429 概率
+                model="gemini-3.6-flash",  # 👈 使用配额相对宽裕的模型，降低触发 429 概率
                 temperature=0.01,
                 google_api_key=selected_key
             )
