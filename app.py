@@ -1,5 +1,33 @@
 # app.py (M7-ALPHA Main Executive Console - Multi-Row Macro Dashboard with Release Dates)
 import streamlit as strl
+
+def check_password():
+    """返回 True 代表验证通过，False 代表未验证"""
+    if strl.session_state.get("password_correct", False):
+        return True
+
+    strl.markdown("## 🦅 M7 Quant Console Access Control")
+    strl.info("🔒 为了防止 API Key 额度被频繁访问刷爆，请输入访问密码：")
+    
+    user_password = strl.text_input("请输入授权密码 (Access Password):", type="password", key="app_password_input")
+    
+    if strl.button("解锁进入系统 ->", use_container_width=True):
+        # 💡 你可以在这里设置你自己的专属密码，比如 "m7quant2026"
+        if user_password == "123123123": 
+            strl.session_state["password_correct"] = True
+            strl.rerun()  # 刷新页面加载主程序
+        else:
+            strl.error("❌ 密码错误！请输入正确的访问密钥。")
+            
+    return False
+
+# 如果密码不正确，停止往下执行主程序代码
+if not check_password():
+    strl.stop()
+# =====================================================================
+# ⬇️ 紧接着是你原本的 app.py 主程序代码（st.sidebar / tab_decision 等）
+
+
 import os
 import sys
 import json
