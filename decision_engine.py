@@ -1,8 +1,9 @@
-# decision_engine.py (M7-ALPHA Central Quant Strategic Decision Engine - Multi-Factor Synthesis)
+# decision_engine.py (M7-ALPHA Central Quant Strategic Decision Engine - Multi-Factor Synthesis & Dynamic Risk Calibration)
 import os
 import json
 import random
 import sys
+import re
 import pandas as pd
 import numpy as np
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -34,7 +35,7 @@ if not active_google_keys:
 
 def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, stock_news, geo_news, time_prompt, urgent_intel=""):
     """
-    🚀 M7 Strategic Decision Engine: Integrates live prices, macro factors, 
+    🚀 M7 Strategic Decision Engine: Integrates live prices, FRED macro factors, 
     technical indicators, fundamental audits, and urgent intelligence catalysts.
     """
     print(f"🧠 [M7-DECISION-ENGINE] Dynamically computing technical indicators for [{ticker}] from local Parquet cache...")
@@ -101,34 +102,72 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
         except: 
             pass
 
+    # 🌐【结构化解包】格式化 FRED 美联储 & 核心宏观多因子清单
+    macro_formatted_lines = []
+    if isinstance(macro_data, dict):
+        for m_key, m_val in macro_data.items():
+            if isinstance(m_val, dict):
+                v_str = m_val.get("val", "N/A")
+                p_str = m_val.get("prev", "N/A")
+                d_str = f" [Release: {m_val.get('date')}]" if m_val.get('date') else ""
+                macro_formatted_lines.append(f"- **{m_key}**: Current={v_str} | Prev={p_str}{d_str}")
+            else:
+                macro_formatted_lines.append(f"- **{m_key}**: {m_val}")
+    macro_full_str = "\n".join(macro_formatted_lines) if macro_formatted_lines else "No detailed FRED macro factors available."
+
     gemini_key = random.choice(active_google_keys)
-    llm = ChatGoogleGenerativeAI(model="gemini-3.5-flash", temperature=0.1, google_api_key=gemini_key)
+    llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0.1, google_api_key=gemini_key)
 
     stock_news_summary = "\n".join([f"- [Ticker Catalyst] {n.get('title')}: {n.get('summary')[:250]}" for n in stock_news])
     geo_news_summary = "\n".join([f"- [Geopolitical Radar] {n.get('title')}: {n.get('summary')[:250]}" for n in geo_news])
 
+    # =====================================================================
+    # 🎯 全量定型 System Prompt 模板
+    # =====================================================================
     prompt_context = f"""
     You are the Chief Quantitative Strategist and Fundamental Analyst at M7-ALPHA Capital. Generate an executive-grade trading decision report for ticker [{ticker}] for the upcoming trading week.
 
-    【🔴 MANDATORY ANALYSIS RULES】:
+    【🔴 MANDATORY ANALYSIS & FORMATTING RULES】:
     1. ⚡⚡【DATA SOURCE 5: URGENT EXECUTIVE INTELLIGENCE】:
        This input contains real-time catalysts entered directly by executive leadership. If it mentions events such as "10% pre-market crash" or "private placement dilution", you MUST treat it as the HIGHEST PRIORITY SHORT-TERM CATALYST across all sections (especially Risk Control and Trading Strategy) to counter historical fundamental lag!
-    2. 【DATA SOURCE 4: FUNDAMENTAL AUDIT REPORT】:
-       Treat this as the structural baseline. Synthesize the long-term fundamental anchor from Source 4 with the short-term high-volatility impulse from Source 5.
-    3. 【TECHNICAL & MACRO ALIGNMENT】:
-       Combine the Macro Snapshot with exact Technical Data (Close Price, Moving Averages, Bollinger Bands) to derive precise resistance and support levels.
-    4. 🚫 【NO LATEX / MATH FORMATTING】:
-       DO NOT wrap prose sentences or text in LaTeX math characters (like $...$ or $$...$$). Write plain text and dollar figures directly as plain numbers (e.g., write "$18.22B" or "10%").
-    5. 🚫 【NO HALLUCINATIONS】:
+
+    2. 🏛️【DATA SOURCE 2: FULL-SPECTRUM FRED MACRO & FED LIQUIDITY FACTORS (MANDATORY)】:
+       You MUST explicitly integrate Fed Funds Rate, Unemployment Rate, Non-Farm Payrolls, Core CPI YoY, PPI (YoY/MoM), 10Y Treasury Yield, and US Dollar Index into your macro analysis. Explain how interest rates, labor market tightness, and inflation sticky points impact the discount rate and valuation baseline for [{ticker}].
+
+    3. ⚖️【REWARD-TO-RISK RATIO (盈亏比) MATHEMATICAL HARD CONSTRAINT】:
+       Use EXCLUSIVELY the unambiguous term "Reward-to-Risk Ratio" (DO NOT write "Risk-Reward Ratio"). 
+       You MUST calculate it rigorously using the exact mathematical formula:
+       Reward-to-Risk Ratio = (Primary Take-Profit Target - Tactical Entry Price) / (Tactical Entry Price - Strict Stop-Loss Level)
+       * Example: If Entry = $370.00, Take-Profit = $392.00, Stop-Loss = $345.50:
+         Reward = $392.00 - $370.00 = $22.00
+         Risk = $370.00 - $345.50 = $24.50
+         Reward-to-Risk Ratio = 22.00 / 24.50 = 0.90:1 (or 0.9:1).
+       * NEVER fabricate or hallucinate a fixed "2.4:1" ratio if the price math does not support it! Ensure the written ratio 100% matches your proposed execution price parameters.
+
+    4. 📊【SECTION 1 MULTI-FACTOR EVIDENCE MATRIX STRICT TEMPLATE】:
+       Section 1 MUST contain a clean Markdown Table with EXACTLY 3 columns (`Factor Module`, `Data Input & Values`, `Impact on Valuation & Trend Signal`). DO NOT output pseudo-code boxes, ASCII block diagrams, or text lists for the matrix.
+
+    5. 🚫 【NO LATEX / HTML CODE EMBEDDING】:
+       DO NOT wrap prose or numbers in LaTeX characters (like $...$ or $$...$$). Write plain text and dollar figures directly (e.g., write "$18.22B" or "10%").
+       DO NOT insert HTML tags (like `<span style=...>` or `<div>`) inside the report prose or table cells. Output clean standard Markdown text.
+
+    6. 🚫 【NO HALLUCINATIONS】:
        If any historical data point is unavailable, report 'N/A' directly. Never fabricate historical financials.
+
+    ------------------------------------------------------------------
+    【INPUT FACTOR DATASETS】
 
     【CURRENT TIMEFRAME VIEW】: {period_choice}
     
     【DATA SOURCE 1: LIVE BENCHMARK EXECUTION PRICE】
     {time_prompt}
     
-    【DATA SOURCE 2: U.S. MAJOR INDICES MACRO SNAPSHOT】
+    【DATA SOURCE 2: U.S. MAJOR INDICES & FULL-SPECTRUM FRED MACRO FACTORS】
+    * U.S. Major Stock Market Benchmarks:
     {json.dumps(broad_market_metrics, ensure_ascii=False, indent=2)}
+    
+    * Federal Reserve & Core Macro Economic Indicators (FRED API):
+    {macro_full_str}
     
     【DATA SOURCE 3: REAL-TIME TECHNICAL INDICATORS (PARQUET ENGINE)】
     {json.dumps(latest_market_metrics, ensure_ascii=False, indent=2)}
@@ -144,20 +183,49 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
     {stock_news_summary}
     * Geopolitical Intelligence:
     {geo_news_summary}
-    
+    ------------------------------------------------------------------
+
     Please output a comprehensive, structured quantitative trading report using EXACTLY the following 4 section headings in Markdown:
     
     ### 1️⃣ 【Executive Direction & Multi-Factor Evidence Matrix】
+    - **Executive Direction**: [BULLISH / BEARISH / NEUTRAL / OVERWEIGHT / UNDERWEIGHT]
+    - **Primary Execution Benchmark**: [Current Execution Price]
+    - **Timeframe**: [Daily / 1-Week Tactical Window]
+
+    #### Multi-Factor Evidence Matrix
+    | Factor Module | Data Input & Values | Impact on Valuation & Trend Signal |
+    | :--- | :--- | :--- |
+    | **Fed & Macro Regime** | [Summarize Fed Rate, CPI, PPI, NFP, Unemployment, Yields] | [Analysis signal] |
+    | **Market Beta Sentiment** | [Summarize S&P 500, NASDAQ, Dow Jones] | [Analysis signal] |
+    | **Fundamental Anchor** | [Summarize Earnings, Revenue, Margins] | [Analysis signal] |
+    | **Real-Time Catalysts** | [Summarize Catalysts & Urgent Intel] | [Analysis signal] |
+
     ### 2️⃣ 【Technical Indicator State & Key Target Price Levels】
+    - **Technical Structure Overview**: [Moving Average alignment and Bollinger Band status]
+    - **Key Resistance Levels**: [Resistance 1, Resistance 2]
+    - **Key Support Levels**: [Support 1, Support 2]
+
     ### 3️⃣ 【Weekly Outlook Rating & Multi-Factor Convergence Logic】
+    - **Macro & Fed Liquidity Alignment**: [Deep analysis on Fed Rate, Inflation, Labor Data]
+    - **Fundamental & Earnings Confluence**: [Synthesis of fundamental report]
+    - **News & Geopolitical Catalyst Impact**: [Impact of stock news and geopolitical risks]
+
     ### 4️⃣ 【Actionable Trading Strategy & Risk Management Plan】
+    - **Recommended Asset Allocation**: [e.g., Overweight (5.0% to 7.0% portfolio allocation)]
+    - **Trade Execution Parameters**:
+      * **Tactical Entry Zone**: [Exact Entry Price]
+      * **Primary Take-Profit Target**: [Exact Target Price]
+      * **Strict Stop-Loss Level**: [Exact Stop-Loss Price]
+    - **Reward-to-Risk Ratio**: [Calculated precisely as (Target - Entry) / (Entry - Stop Loss), e.g., 2.1:1 or 0.9:1]
+    - **Dynamic Contingency Triggers**:
+      * **Upside Acceleration Trigger**: [e.g., A daily close above $X opens secondary momentum toward $Y]
+      * **Downside Invalidation Trigger**: [e.g., A breach below $Z invalidates the bullish stance]
     """
 
     try:
         message = HumanMessage(content=prompt_context)
         ai_message = llm.invoke([message])
         
-        # 1️⃣ 提取纯文本 content（安全处理 str 和 list 多种返回类型）
         raw_content = ai_message.content
         if isinstance(raw_content, list):
             fragments = []
@@ -170,18 +238,11 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
         else:
             clean_res = str(raw_content)
 
-        # 2️⃣ 彻底斩断 LaTeX 字体斜体粘连 BUG：
-        # 将被 $ ... $ 包裹的长文本，或单独的美元符号全部进行转义或替换，
-        # 确保 Streamlit 把它当成纯文本/Markdown 渲染，绝不触发 KaTeX 公式引擎！
-        import re
-        
-        # 物理剥离包裹长英文句子的单美元符号 (如 $200B Anthropic...$ -> 200B Anthropic...)
+        # 物理剥离多余格式符，斩断 LaTeX 斜体与伪代码块 BUG
+        clean_res = re.sub(r'```[a-zA-Z]*\n', '', clean_res)
+        clean_res = clean_res.replace('```', '')
         clean_res = re.sub(r'\$([^\$\n]{2,})\$', r'\1', clean_res)
-        
-        # 消除 Note: 被 * ... * 强行包裹造成的全段斜体
         clean_res = re.sub(r'\*(Note:[^*]+)\*', r'\1', clean_res)
-        
-        # 将剩下的单个美元符号（如 $200B）转义为 \$，防止 Streamlit 前端误判
         clean_res = clean_res.replace('$', '\\$')
         
         return clean_res

@@ -1,4 +1,4 @@
-# app.py (M7-ALPHA Main Executive Console - English Edition & Clean Dynamic NASDAQ-100 Fetcher)
+# app.py (M7-ALPHA Main Executive Console - Multi-Row Macro Dashboard with Release Dates)
 import streamlit as strl
 import os
 import sys
@@ -38,9 +38,6 @@ os.makedirs(DATA_CACHE_DIR, exist_ok=True)
 LIVE_SNAPSHOT_PATH = os.path.join(DATA_CACHE_DIR, "m7_live_prices_snapshot.json")
 
 # =====================================================================
-# 🌐 Dynamic Clean NASDAQ-100 Fetcher (Silent Logging & Non-Wikipedia)
-# =====================================================================
-# =====================================================================
 # 🌐 Dynamic Clean NASDAQ-100 Fetcher (Bug Fixed: Strict Ticker Filter)
 # =====================================================================
 def get_nasdaq_100_tickers() -> list:
@@ -51,7 +48,6 @@ def get_nasdaq_100_tickers() -> list:
     cache_path = os.path.join(DATA_CACHE_DIR, "nasdaq100_constituents_cache.json")
     today_str = datetime.now().strftime("%Y-%m-%d")
     
-    # 1. Local 24-Hour Cache Check
     if os.path.exists(cache_path):
         try:
             with open(cache_path, "r", encoding="utf-8") as f:
@@ -64,14 +60,12 @@ def get_nasdaq_100_tickers() -> list:
 
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
-    # 2. Source A: Open JSON API (GitHub Feed)
     feed_url = "https://yfiua.github.io/index-constituents/constituents-nasdaq100.json"
     try:
         resp = requests.get(feed_url, headers=headers, timeout=5)
         if resp.status_code == 200:
             data = resp.json()
             tickers = [item.get("symbol", "").strip().replace(".", "-") for item in data if item.get("symbol")]
-            # 💡 强力过滤：排除包含数字的价格脏数据，只保留纯字母或带连字符的代码
             clean_tickers = sorted(list(set([
                 t.upper() for t in tickers 
                 if t and (t.isalpha() or ("-" in t and t.replace("-", "").isalpha()))
@@ -84,13 +78,11 @@ def get_nasdaq_100_tickers() -> list:
     except Exception:
         print("⚠️ [M7-TICKERS] Source A (GitHub Index Feed) unavailable. Trying Source B...")
 
-    # 3. Source B: Slickcharts (Clean Table DOM Scraping)
     slick_url = "https://www.slickcharts.com/nasdaq100"
     try:
         resp = requests.get(slick_url, headers=headers, timeout=5)
         if resp.status_code == 200:
             soup = BeautifulSoup(resp.text, "html.parser")
-            # 💡 锁定 main 区域内的表格，避免混入侧边栏 ETF 价格
             main_table = soup.find("table", class_="table")
             tickers = []
             if main_table:
@@ -99,7 +91,6 @@ def get_nasdaq_100_tickers() -> list:
                     cols = row.find_all("td")
                     if len(cols) >= 3:
                         symbol_col = cols[2].text.strip().replace(".", "-")
-                        # 💡 强力过滤：确保抓到的只有纯英文股票代码（如 NVDA, GOOGL, BRK-B）
                         if symbol_col and (symbol_col.isalpha() or ("-" in symbol_col and symbol_col.replace("-", "").isalpha())):
                             tickers.append(symbol_col.upper())
                             
@@ -112,7 +103,6 @@ def get_nasdaq_100_tickers() -> list:
     except Exception:
         print("⚠️ [M7-TICKERS] Source B (Slickcharts) unavailable. Falling back to local default pool.")
 
-    # 4. Fallback Pool
     fallback_pool = sorted(list(set([
         "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "NVDA", "META", "TSLA", "AVGO", "PEP",
         "COST", "CSCO", "NFLX", "AMD", "CMCSA", "TMUS", "ADBE", "TXN", "INTC", "HON",
@@ -355,7 +345,7 @@ with strl.sidebar:
         strl.rerun()
 
 # =====================================================================
-# 📊 Core Market Indices Rendering (Daily Cache Verification Fixed)
+# 📊 Core Market Indices Calculation
 # =====================================================================
 index_snapshot = {
     "GSPC": {"val": "0.00", "arrow": "—", "color": "#58a6ff", "pct": "0.00%"}, 
@@ -399,29 +389,100 @@ for idx_key, idx_ticker in index_map.items():
         except Exception as calc_err: 
             print(f"⚠️ Index calculation error [{idx_ticker}]: {calc_err}")
 
-macro_cards_html = ""
+# =====================================================================
+# 📊 Multi-Row Responsive Macro Rendering with Release Dates
+# =====================================================================
+def make_card_html(title, val_str, card_color, card_arrow, date_str="", min_w="160px"):
+    date_html = f'<span style="font-size:10px; color:#8b949e; background:#21262d; padding:2px 6px; border-radius:4px; font-weight:normal;">📅 {date_str}</span>' if date_str else ''
+    return f'''
+    <div style="flex: 1 1 {min_w}; min-width: {min_w}; background-color: #161b22; padding: 10px 14px; border-radius: 6px; border-top: 3px solid {card_color}; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <p style="margin: 0; color: #8b949e; font-size: 11px; font-weight: bold; font-family: sans-serif;">{title}</p>
+            {date_html}
+        </div>
+        <p style="margin: 0; color: {card_color}; font-size: 14px; font-weight: bold; font-family: monospace;">
+            <span style="font-size: 11px; margin-right: 2px;">{card_arrow}</span>{val_str}
+        </p>
+    </div>
+    '''
+
+# 行 1: 美股三大指数 + 市场高频行行情
+# 行 1: 美股三大指数 + 市场高频行情（智能对比上一交易日升降）
+row1_html = ""
 idx_labels = {"GSPC": "S&P 500 Index", "DJI": "Dow Jones Industrial", "IXIC": "NASDAQ Composite"}
 for k, item in index_snapshot.items():
-    macro_cards_html += f'<div style="flex: 1; min-width: 140px; background-color: #1a2333; padding: 8px 12px; border-radius: 6px; border-top: 3px solid {item["color"]}; box-shadow: 0 4px 6px rgba(0,0,0,0.4);"><p style="margin: 0 0 4px 0; color: #ffcc00; font-size: 11px; font-weight: bold; font-family: sans-serif; white-space: nowrap;">{idx_labels[k]}</p><p style="margin: 0; color: {item["color"]}; font-size: 14px; font-weight: bold; font-family: monospace; white-space: nowrap;"><span style="font-size:10px; margin-right:2px;">{item["arrow"]}</span>{item["val"]} <span style="font-size:9px; font-weight:normal;">({item["pct"]})</span></p></div>'
+    row1_html += f'<div style="flex: 1 1 150px; min-width: 150px; background-color: #1a2333; padding: 10px 14px; border-radius: 6px; border-top: 3px solid {item["color"]}; box-shadow: 0 4px 6px rgba(0,0,0,0.4);"><p style="margin: 0 0 4px 0; color: #ffcc00; font-size: 11px; font-weight: bold; font-family: sans-serif;">{idx_labels[k]}</p><p style="margin: 0; color: {item["color"]}; font-size: 14px; font-weight: bold; font-family: monospace;"><span style="font-size:11px; margin-right:2px;">{item["arrow"]}</span>{item["val"]} <span style="font-size:10px; font-weight:normal;">({item["pct"]})</span></p></div>'
 
-if macro_data:
-    for name, node in macro_data.items():
-        card_color, card_arrow, display_val = "#58a6ff", "—", "N/A"
-        if isinstance(node, dict):
-            val, prev = node.get("val", "N/A"), node.get("prev", "N/A")
-            display_val = str(val)
-            if prev == "STATIC":
-                card_arrow = "📢"
-                card_color = "#00FF00" if ("+" in display_val or "up" in display_val.lower()) else ("#FF4444" if ("-" in display_val or "down" in display_val.lower()) else "#f0883e")
-            elif val != "N/A" and prev != "N/A":
-                try:
-                    num_curr, num_prev = float(val.replace("%", "").strip()), float(prev.replace("%", "").strip())
-                    card_color, card_arrow = ("#00FF00", "▲") if num_curr > num_prev else ("#FF4444", "▼")
-                except: pass
-        else: display_val = str(node)
-        macro_cards_html += f'<div style="flex: 1; min-width: 140px; background-color: #161b22; padding: 8px 12px; border-radius: 6px; border-top: 3px solid {card_color}; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"><p style="margin: 0 0 4px 0; color: #8b949e; font-size: 11px; font-weight: bold; font-family: sans-serif; white-space: nowrap;">{name}</p><p style="margin: 0; color: {card_color}; font-size: 13px; font-weight: bold; font-family: monospace; white-space: normal; word-break: break-all; line-height: 1.2;"><span style="font-size: 10px; margin-right: 2px;">{card_arrow}</span>{display_val}</p></div>'
+market_keys = ["US Dollar Index", "10Y Treasury Yield", "Brent Crude Oil"]
+for mk in market_keys:
+    if macro_data and mk in macro_data:
+        node = macro_data[mk]
+        val = str(node.get("val", "N/A"))
+        prev = str(node.get("prev", "N/A"))
+        color, arrow = "#58a6ff", "—"
+        
+        # 智能对比当期与前值
+        try:
+            v_num = float(val.replace("%", "").strip())
+            p_num = float(prev.replace("%", "").strip())
+            if v_num > p_num:
+                color, arrow = "#00FF00", "▲"
+            elif v_num < p_num:
+                color, arrow = "#FF4444", "▼"
+        except:
+            if "+" in val: color, arrow = "#00FF00", "▲"
+            elif "-" in val: color, arrow = "#FF4444", "▼"
+            
+        row1_html += make_card_html(mk, val, color, arrow, min_w="140px")
 
-strl.html(f'<div class="macro-container">{macro_cards_html}</div><style>body {{ margin: 0; background-color: transparent; font-family: sans-serif; }} .macro-container {{ display: flex; flex-wrap: wrap; width: 100%; gap: 8px; }} .macro-container > div {{ flex: 1 1 calc(20% - 8px); min-width: 140px; box-sizing: border-box; }}</style>')
+# 行 2: 美联储与就业核心数据（比对上一期 FED / 失业率数据）
+row2_html = ""
+fed_keys = ["Fed Funds Rate", "Unemployment Rate", "Non-Farm Payrolls"]
+for fk in fed_keys:
+    if macro_data and fk in macro_data:
+        node = macro_data[fk]
+        val = str(node.get("val", "N/A"))
+        prev = str(node.get("prev", "N/A"))
+        d_str = str(node.get("date", ""))
+        color, arrow = "#58a6ff", "—"
+        
+        if "+" in val or "M" in val:
+            color, arrow = "#00FF00", "▲"
+        elif "-" in val:
+            color, arrow = "#FF4444", "▼"
+        else:
+            # 针对利率/失业率纯数字，对比上一期升降
+            try:
+                v_num = float(val.replace("%", "").strip())
+                p_num = float(prev.replace("%", "").strip())
+                if v_num > p_num:
+                    color, arrow = "#00FF00", "▲"
+                elif v_num < p_num:
+                    color, arrow = "#FF4444", "▼"
+            except: pass
+            
+        clean_val = val.replace("-", "").strip() if "-" in val and "M" not in val else val
+        row2_html += make_card_html(fk, clean_val, color, arrow, date_str=d_str, min_w="220px")
+
+# 行 3: 通胀数据（CPI & PPI）
+row3_html = ""
+inflation_keys = ["Core CPI YoY", "PPI YoY", "PPI MoM"]
+for ik in inflation_keys:
+    if macro_data and ik in macro_data:
+        node = macro_data[ik]
+        val = str(node.get("val", "N/A"))
+        d_str = str(node.get("date", ""))
+        color, arrow = ("#00FF00", "▲") if "+" in val else (("#FF4444", "▼") if "-" in val else ("#58a6ff", "—"))
+        clean_val = val.replace("-", "").strip() if "-" in val else val
+        row3_html += make_card_html(ik, clean_val, color, arrow, date_str=d_str, min_w="220px")
+# 渲染 3 行自适应分层 HTML 容器
+strl.html(f'''
+<div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+    <div style="display: flex; flex-wrap: wrap; gap: 8px; width: 100%;">{row1_html}</div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px; width: 100%;">{row2_html}</div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px; width: 100%;">{row3_html}</div>
+</div>
+''')
 strl.markdown("---")
 
 # =====================================================================
@@ -637,10 +698,29 @@ with tab_decision:
                                 if "url" in n_copy: del n_copy["url"]
                                 processed_geo_news.append(n_copy)
                             else: processed_geo_news.append(n)
+                    # =====================================================================
+                    # 🦅 格式化全量宏观因子（包含美联储利率、非农、失业率、CPI、PPI、美债、原油、美元指数与三大指数）
+                    # =====================================================================
+                    merged_macro_context = {}
 
-                    merged_macro_context = globals()["macro_data"].copy()
+                    # 1. 注入实时三大指数
                     for idx_k, idx_v in index_snapshot.items():
                         merged_macro_context[f"Index_{idx_k}"] = f"{idx_v['val']} ({idx_v['pct']})"
+
+                    # 2. 注入 FRED 美联储与核心宏观经济指标（带发布日期）
+                    if macro_data:
+                        for m_key, m_node in macro_data.items():
+                            if isinstance(m_node, dict):
+                                val_str = m_node.get("val", "N/A")
+                                prev_str = m_node.get("prev", "N/A")
+                                date_str = m_node.get("date", "")
+                                date_tag = f" [Released: {date_str}]" if date_str else ""
+                                merged_macro_context[m_key] = f"Current: {val_str} (Previous: {prev_str}){date_tag}"
+                            else:
+                                merged_macro_context[m_key] = str(m_node)
+
+                    print(f"📡 [M7-DECISION-DEBUG] 成功打包全量宏观与美联储上下文传给 Gemini:\n{json.dumps(merged_macro_context, indent=2, ensure_ascii=False)}")
+                   
 
                     raw_rep = decision_engine.generate_m7_weekly_decision(
                         ticker=decision_target, 
@@ -696,5 +776,38 @@ with tab_decision:
                 else:
                     clean_text = str(dec_res)
 
+                # =====================================================================
+                # 🎨 决策报告看涨/看跌关键词自动高亮与点亮渲染逻辑 (彻底修复源码泄露 BUG)
+                # =====================================================================
                 clean_decision_text = clean_text.replace("\\n", "\n").replace("<br>", " ").replace("<br />", " ")
-                strl.markdown(clean_decision_text)
+
+                # 1. 物理安全高亮替换函数：使用 HTML 标签，并防止泄露
+                def highlight_bull_bear_keywords(text: str) -> str:
+                    import re
+                    
+                    # 先剔除大模型可能包裹的伪 ASCII 代码块标记，使其强行退回标准 Markdown 格式
+                    text = re.sub(r'```[a-zA-Z]*\n', '', text)
+                    text = text.replace('```', '')
+
+                    # 看涨 / 看跌正则匹配
+                    bull_pattern = r'\b(Bullish|BULLISH|Bull|BULL|Long|LONG|Overweight|OVERWEIGHT)\b'
+                    bear_pattern = r'\b(Bearish|BEARISH|Bear|BEAR|Short|SHORT|Underweight|UNDERWEIGHT)\b'
+                    
+                    # 替换为内联高亮 CSS 标签
+                    text = re.sub(
+                        bull_pattern, 
+                        r'<span style="color: #00FF00; font-weight: bold; background-color: rgba(0, 255, 0, 0.12); padding: 1px 5px; border-radius: 4px;">\1</span>', 
+                        text
+                    )
+                    text = re.sub(
+                        bear_pattern, 
+                        r'<span style="color: #FF4444; font-weight: bold; background-color: rgba(255, 68, 68, 0.12); padding: 1px 5px; border-radius: 4px;">\1</span>', 
+                        text
+                    )
+                    return text
+
+                # 2. 执行安全高亮
+                highlighted_decision_text = highlight_bull_bear_keywords(clean_decision_text)
+
+                # 3. 渲染最终 HTML/Markdown 结果
+                strl.markdown(highlighted_decision_text, unsafe_allow_html=True)
