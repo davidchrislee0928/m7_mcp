@@ -1,4 +1,4 @@
-# mcp_langgraph_agent.py (FMP Gateway · Multi-Key Rotation Pool · English System Prompt Edition)
+# mcp_langgraph_agent.py (FMP Gateway · Multi-Key Rotation Pool · Robust Fallback & 429 Anti-Crash Edition)
 import os
 import sys
 import time
@@ -6,7 +6,9 @@ import json
 import random
 import datetime
 import requests
-import traceback  
+import traceback
+import pandas as pd  # 👈 核心修复 1：在文件顶部导入 pandas，彻底解决 NameError: name 'pd' is not defined
+import yfinance as yf
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -99,9 +101,8 @@ def get_income_statement_fmp(symbol: str) -> list:
         return []
 
 # =====================================================================
-# 💾 Persistent Local Cache Shield
+# 💾 Persistent Local Cache Shield & Hybrid Fetcher
 # =====================================================================
-# mcp_langgraph_agent.py (FMP & yfinance Multi-Source Hybrid Engine)
 def get_m7_financial_packet_with_cache(symbol: str) -> dict:
     symbol = symbol.upper().strip()
     cache_file_path = os.path.join(CACHE_DIR, f"fmp_cache_{symbol}.json")
@@ -115,6 +116,7 @@ def get_m7_financial_packet_with_cache(symbol: str) -> dict:
             cache_time = datetime.datetime.strptime(cache_time_str, "%Y-%m-%d %H:%M:%S")
             # 校验缓存里的 income 列表是否非空，防止坏缓存死锁
             if (datetime.datetime.now() - cache_time).days < 1 and cache_data.get("packet", {}).get("income"):
+                print(f"💾 [M7-LOG-CACHE] Reading valid cached financial data for [{symbol}].")
                 return cache_data["packet"]
         except Exception:
             pass
@@ -130,11 +132,10 @@ def get_m7_financial_packet_with_cache(symbol: str) -> dict:
         "income": fmp_income if isinstance(fmp_income, list) else []
     }
 
-    # 3. 💡 双重保障：如果 FMP 接口没有拿到季度 Income 数据，立刻无缝触发 yfinance 穿透补救
+    # 3. 💡 双重保障：如果 FMP 接口报 402 或为空，立刻无缝触发 yfinance 穿透补救
     if not packet["income"]:
         try:
             print(f"⚠️ [M7-LOG-FALLBACK] FMP income empty for [{symbol}]. Triggering yfinance gateway...")
-            import yfinance as yf
             t_obj = yf.Ticker(symbol)
             
             q_financials = t_obj.quarterly_financials
@@ -182,6 +183,8 @@ def get_m7_financial_packet_with_cache(symbol: str) -> dict:
             print(f"⚠️ [M7-LOG-CACHE] Error saving cache: {e}")
 
     return packet
+
+
 def run_m7_audit(ticker_symbol: str, kline_period: str = "Daily"):
     print("\n" + "⚡"*15 + f" [M7 QUANT ENGINE AUDIT START FOR {ticker_symbol}] " + "⚡"*15)
     
@@ -218,16 +221,6 @@ def run_m7_audit(ticker_symbol: str, kline_period: str = "Daily"):
     except Exception as clean_err:
         print(f"❌ [M7-LOG-DIAGNOSTIC] Error purifying data packet: {clean_err}")
 
-    # 🌟 3. Random API Key Rotation
-    selected_key = random.choice(active_google_keys)
-    print(f"\n🎲 [M7-LOG-ROULETTE] Selected active Google API Key channel: [...{selected_key[-6:] if selected_key else 'None'}]")
-    
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-3.6-flash", 
-        temperature=0.01,
-        google_api_key=selected_key
-    )
-    
     now_time = datetime.datetime.now()
     current_date = now_time.strftime("%Y-%m-%d")
 
@@ -244,7 +237,7 @@ def run_m7_audit(ticker_symbol: str, kline_period: str = "Daily"):
         f"3. **Complete Three-Section Output**: Output Section I, II, and III fully in English.\n"
         f"4. **Ban HTML Line Breaks**: Do NOT insert <br>, <br />, or <br/> tags inside Markdown tables.\n"
         f"5. **STRICTLY BAN LATEX / MATH FORMATTING**: Absolutely DO NOT wrap text sentences inside LaTeX math symbols (like $...$ or $$...$$). Write standard plain text directly!\n"
-        f"6. **NO ITALIC FOOTNOTE WRAPPING**: DO NOT wrap entire sentences or 'Note:' paragraphs inside asterisks (e.g., *Note: ...*). Never output italicized paragraphs that cause KaTeX font squeezing bugs!\n" # 👈 防线：禁止段落级斜体包裹
+        f"6. **NO ITALIC FOOTNOTE WRAPPING**: DO NOT wrap entire sentences or 'Note:' paragraphs inside asterisks (e.g., *Note: ...*). Never output italicized paragraphs that cause KaTeX font squeezing bugs!\n"
         f"7. **NO HALLUCINATION ON MISSING METRICS**: If historical quarters are missing, report 'N/A' directly. Never fabricate fake numbers!\n\n"
         f"---\n"        
         f"### I. 🎯 Strategic Positioning: 【{ticker_symbol}】\n"
@@ -270,14 +263,40 @@ def run_m7_audit(ticker_symbol: str, kline_period: str = "Daily"):
         f"Please perform a complete fundamental extraction. Use the 5 quarters of data to identify the corresponding quarter from last year and compute the exact YoY Growth in the final column of the table. Complete Section I, II, and III fully in English before concluding your output."
     )
     
-    # 🌟 4. Execute Invoke and Extract Response
-    try:
-        print("\n📡 [M7-LOG-LLM] Sending Invoke command to Gemini 3.6 Flash pipeline...")
-        response = llm.invoke([SystemMessage(content=system_instruction), HumanMessage(content=user_task)])
-        print("🟢 [M7-LOG-LLM] Response received! Parsing object structure...")
-        
-        # 在 mcp_langgraph_agent.py 的 run_m7_audit 函数底部，将 final_report 处理部分替换为：
+    # 🌟 4. Execute Invoke with Multi-Key Rotation and 429 Retry Mechanism
+    response = None
+    max_retries = 3
 
+    for attempt in range(max_retries):
+        selected_key = random.choice(active_google_keys)
+        print(f"\n🎲 [M7-LOG-ROULETTE] Attempt {attempt + 1}/{max_retries} | Selected active Google API Key: [...{selected_key[-6:] if selected_key else 'None'}]")
+        
+        try:
+            llm = ChatGoogleGenerativeAI(
+                model="gemini-2.5-flash",  # 👈 使用配额相对宽裕的模型，降低触发 429 概率
+                temperature=0.01,
+                google_api_key=selected_key
+            )
+            print("📡 [M7-LOG-LLM] Sending Invoke command to Gemini Flash pipeline...")
+            response = llm.invoke([SystemMessage(content=system_instruction), HumanMessage(content=user_task)])
+            print("🟢 [M7-LOG-LLM] Response received! Parsing object structure...")
+            break  # 成功调取，跳出重试循环
+
+        except Exception as err:
+            err_str = str(err)
+            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                print(f"⚠️ [M7-LOG-429] Triggered rate limit on key [...{selected_key[-6:]}]. Waiting 11 seconds for quota reset...")
+                time.sleep(11)
+            else:
+                print(f"❌ [M7-LOG-ERROR] API call failed on attempt {attempt + 1}: {err}")
+                if attempt == max_retries - 1:
+                    raise err
+
+    if not response:
+        return "❌ [M7-FATAL] All API Keys exhausted or rate-limited. Please try again later."
+
+    # 🌟 5. Parse and Clean LLM Response
+    try:
         final_report = ""
         if isinstance(response, AIMessage):
             if isinstance(response.content, list):
@@ -294,7 +313,6 @@ def run_m7_audit(ticker_symbol: str, kline_period: str = "Daily"):
             final_report = str(response)
 
         # 🛡️ 1. 物理剥离脏挂件
-
         for dirty_tag in ["', 'extras':", '", "extras":', "', extras=", '", extras=']:
             if dirty_tag in final_report:
                 final_report = final_report.split(dirty_tag)[0]
@@ -302,15 +320,14 @@ def run_m7_audit(ticker_symbol: str, kline_period: str = "Daily"):
         # 🚀 2. 【核心排版与 KaTeX 粘连彻底修复算子】
         import re
 
-        # A. 物理斩断被 $ 包裹的一整句/长段英文（如 $200B Anthropic cloud commitment...$ -> 200B Anthropic cloud commitment...）
-        # 只要 $ ... $ 中间包含空格，说明是大模型误用的段落级 LaTeX，直接剥离两端的 $
+        # A. 物理斩断被 $ 包裹的一整句/长段英文
         final_report = re.sub(r'\$([^\$\n]+\s+[^\$\n]+)\$', r'\1', final_report)
 
-        # B. 消除 Note: 被 * ... * 或 _ ... _ 强行包裹造成的全段斜体粘连（如 *Note: ...* -> Note: ...）
+        # B. 消除 Note: 被 * ... * 或 _ ... _ 强行包裹造成的全段斜体粘连
         final_report = re.sub(r'\*+\s*(Note:[^*]+)\*+', r'\1', final_report)
         final_report = re.sub(r'_\s*(Note:[^_]+)_', r'\1', final_report)
 
-        # C. 精准修复因 KaTeX 遗留导致常见财报指标发生的单词粘连（只修复财报特定词，不误伤 iPad/JavaScript 等）
+        # C. 精准修复因 KaTeX 遗留导致常见财报指标发生的单词粘连
         sticky_financial_words = {
             "GrossProfit": "Gross Profit",
             "GrossMargin": "Gross Margin",
@@ -337,5 +354,5 @@ def run_m7_audit(ticker_symbol: str, kline_period: str = "Daily"):
         return f"❌ Fundamental AI Audit Engine Execution Error: {e}"
 
 if __name__ == "__main__":
-    res = run_m7_audit("GOOGL", "Daily")
+    res = run_m7_audit("CRWD", "Daily")
     print(res)
