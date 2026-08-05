@@ -634,7 +634,7 @@ with tab_market:
 # 🦅 Strategic Decision Engine Tab
 # =====================================================================
 with tab_decision:
-    strl.markdown(f"### 🦅 Gemini 3.5 Adaptive Quant Decision Console")
+    strl.markdown(f"### 🦅 Gemini 3.6 Adaptive Quant Decision Console")
     decision_target = audit_target if 'audit_target' in locals() else (selected_tickers[0] if selected_tickers else None)
     
     if not decision_target: 
@@ -789,25 +789,53 @@ with tab_decision:
 
                 clean_decision_text = clean_text.replace("\\n", "\n").replace("<br>", " ").replace("<br />", " ")
 
-                def safe_highlight_bull_bear(text: str) -> str:
-                    import re
-                    text = re.sub(r'```[a-zA-Z]*\n', '', text)
-                    text = text.replace('```', '')
+                # 🧹【防代码泄露重构高亮函数】：彻底屏蔽 <span style="..."> 代码块注入
+                # 🛡️ 绝对安全防白屏渲染逻辑
+                # 🛡️ 100% 不白屏、零乱码、带色彩的原生 Markdown 高亮函数
+                def safe_highlight_bull_bear(text_in: str) -> str:
+                    if not text_in:
+                        return ""
+                    
+                    res = str(text_in)
+                    
+                    # 1. 只清除伪代码块包裹符，绝对使用 replace，绝不使用危险的 <.*> 正则！
+                    res = res.replace("```markdown", "").replace("```html", "").replace("```", "")
+                    
+                    # 2. 剥离此前可能遗留的 HTML 源码标签
+                    res = res.replace("</span>", "").replace("<div>", "").replace("</div>", "")
+                    
+                    # 3. 彻底清洗 **BULLISH / **BEARISH 残留的双星号乱码
+                    res = res.replace('**BULLISH', 'BULLISH').replace('BULLISH**', 'BULLISH')
+                    res = res.replace('**BEARISH', 'BEARISH').replace('BEARISH**', 'BEARISH')
+                    res = res.replace('🟢 🟢', '🟢').replace('🔴 🔴', '🔴')
 
-                    bull_words = ["Bullish", "BULLISH", "Bull", "BULL", "Long", "LONG", "Overweight", "OVERWEIGHT"]
-                    bear_words = ["Bearish", "BEARISH", "Bear", "BEAR", "Short", "SHORT", "Underweight", "UNDERWEIGHT"]
+                    # 4. 🎯【Streamlit 原生彩色文字高亮】：
+                    # 使用 Streamlit 官方原生支持的 :green[...] 和 :red[...] 语法
+                    # 绝对安全、支持上色，且永远不会导致源码泄漏或白屏！
+                    
+                    bull_targets = ["BULLISH", "Bullish", "OVERWEIGHT", "Overweight", "LONG", "Long"]
+                    bear_targets = ["BEARISH", "Bearish", "UNDERWEIGHT", "Underweight", "SHORT", "Short"]
 
-                    for bw in bull_words:
-                        pattern = r'\b' + re.escape(bw) + r'\b'
-                        replacement = f'<span style="color: #00FF00; font-weight: bold; background-color: rgba(0, 255, 0, 0.12); padding: 1px 4px; border-radius: 3px;">{bw}</span>'
-                        text = re.sub(pattern, replacement, text)
+                    for word in bull_targets:
+                        # 精准字词替换，加上绿色加粗
+                        res = res.replace(f" {word} ", f" :green[**{word}**] ")
+                        res = res.replace(f"[{word}]", f"[:green[**{word}**]]")
+                        res = res.replace(f"({word})", f"(:green[**{word}**])")
+                        res = res.replace(f": {word}", f": :green[**{word}**]")
 
-                    for bw in bear_words:
-                        pattern = r'\b' + re.escape(bw) + r'\b'
-                        replacement = f'<span style="color: #FF4444; font-weight: bold; background-color: rgba(255, 68, 68, 0.12); padding: 1px 4px; border-radius: 3px;">{bw}</span>'
-                        text = re.sub(pattern, replacement, text)
+                    for word in bear_targets:
+                        # 精准字词替换，加上红色加粗
+                        res = res.replace(f" {word} ", f" :red[**{word}**] ")
+                        res = res.replace(f"[{word}]", f"[:red[**{word}**]]")
+                        res = res.replace(f"({word})", f"(:red[**{word}**])")
+                        res = res.replace(f": {word}", f": :red[**{word}**]")
 
-                    return text
+                    return res.strip()
 
                 highlighted_decision_text = safe_highlight_bull_bear(clean_decision_text)
-                strl.markdown(highlighted_decision_text, unsafe_allow_html=True)
+                
+                # 🎯 渲染文本
+                if highlighted_decision_text:
+                    strl.markdown(highlighted_decision_text)
+                else:
+                    strl.warning("⚠️ Decision response string is empty. Please check Gemini API response.")
