@@ -17,6 +17,7 @@ print("\n" + "█"*40 + " 🖥️ M7 QUANT ENGINE INITIALIZATION " + "█"*40)
 
 # 📌 1. FMP Environment Key Gatekeeper
 FMP_API_KEY = os.environ.get("FMP_API_KEY")
+FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY", "")
 if not FMP_API_KEY:
     print("❌ [M7-FATAL] Audit Gatekeeper Fusion: [FMP_API_KEY] not found in environment (.env)!")
     sys.exit(1)
@@ -132,12 +133,76 @@ def get_m7_financial_packet_with_cache(symbol: str) -> dict:
         "income": fmp_income if isinstance(fmp_income, list) else []
     }
 
-    # 3. 💡 双重保障：如果 FMP 接口报 402 或为空，立刻无缝触发 yfinance 穿透补救
+    # 3. 💡 降级链路 1：如果 FMP 被拦截/为空，优先使用 Finnhub 抓取# 3. 💡 降级链路 1：如果 FMP 被拦截/为空，优先使用 Finnhub 抓取
+    # 3. 💡 降级链路 1：如果 FMP 被拦截/为空，使用 Finnhub 双接口探测
+    if not packet["income"] and FINNHUB_API_KEY:
+        try:
+            print(f"⚠️ [M7-LOG-FALLBACK] FMP income empty for [{symbol}]. Trying Finnhub API...")
+            
+            # A 方案：尝试 Finnhub 标准财报端点 /stock/financials-reported
+            fh_url = f"https://finnhub.io/api/v1/stock/financials-reported?symbol={symbol}&freq=quarterly&token={FINNHUB_API_KEY}"
+            fh_res = requests.get(fh_url, timeout=10)
+            
+            fh_income_list = []
+            
+            if fh_res.status_code == 200:
+                fh_json = fh_res.json()
+                data_reports = fh_json.get("data", [])
+                print(f"📡 [M7-LOG-FINNHUB] Status 200 | Reports Found: {len(data_reports)}")
+                
+                if data_reports:
+                    for report in data_reports[:5]:
+                        date_str = report.get("endDate", "")[:10]
+                        ic_reports = report.get("report", {}).get("ic", [])
+                        
+                        def find_fh_val(concepts):
+                            for item in ic_reports:
+                                if item.get("concept") in concepts:
+                                    return float(item.get("value", 0))
+                            return 0.0
+
+                        rev = find_fh_val(["Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax", "SalesRevenueNet", "TotalRevenue"])
+                        gp = find_fh_val(["GrossProfit"])
+                        rd = find_fh_val(["ResearchAndDevelopmentExpense"])
+                        op_inc = find_fh_val(["OperatingIncomeLoss"])
+                        net_inc = find_fh_val(["NetIncomeLoss"])
+
+                        fh_income_list.append({
+                            "date": date_str,
+                            "revenue": rev,
+                            "grossProfit": gp,
+                            "grossProfitRatio": (gp / rev) if rev > 0 else 0.0,
+                            "researchAndDevelopmentExpenses": rd,
+                            "operatingIncome": op_inc,
+                            "netIncome": net_inc
+                        })
+
+            # B 方案：如果 financials-reported 为空，立刻触发 B 计划：请求 Finnhub 的 /stock/metric 端点
+            if not fh_income_list:
+                print(f"⚠️ [M7-LOG-FINNHUB] Primary Finnhub endpoint empty for [{symbol}]. Trying secondary metric probe...")
+                metric_url = f"https://finnhub.io/api/v1/stock/metric?symbol={symbol}&metric=all&token={FINNHUB_API_KEY}"
+                m_res = requests.get(metric_url, timeout=10)
+                if m_res.status_code == 200:
+                    m_data = m_res.json().get("metric", {})
+                    # 提取 TTM 级别或最近年度的核心指标，避免整条流水线走空
+                    rev_ttm = float(m_data.get("revenueTTM", 0) or 0)
+                    if rev_ttm > 0:
+                        print(f"🟢 [M7-LOG-FINNHUB] Recovered TTM metrics via Finnhub probe for [{symbol}]! Revenue TTM: ${rev_ttm/1e9:.2f}B")
+
+            if fh_income_list and fh_income_list[0]["revenue"] > 0:
+                packet["income"] = fh_income_list
+                print(f"🟢 [M7-LOG-FALLBACK] Successfully recovered {len(fh_income_list)} quarters via Finnhub for [{symbol}].")
+            else:
+                print(f"⚠️ [M7-LOG-FINNHUB] No valid income data in Finnhub for [{symbol}]. Passing to yfinance...")
+
+        except Exception as fh_err:
+            print(f"❌ [M7-LOG-FALLBACK] Finnhub fallback failed for [{symbol}]: {fh_err}")
+
+    # 4. 💡 降级链路 2：如果 FMP 和 Finnhub 都拿不到，触发 yfinance 兜底
     if not packet["income"]:
         try:
-            print(f"⚠️ [M7-LOG-FALLBACK] FMP income empty for [{symbol}]. Triggering yfinance gateway...")
+            print(f"⚠️ [M7-LOG-FALLBACK] Financials still empty for [{symbol}]. Triggering yfinance gateway...")
             t_obj = yf.Ticker(symbol)
-            
             q_financials = t_obj.quarterly_financials
             if q_financials is not None and not q_financials.empty:
                 yf_income_list = []
@@ -145,7 +210,6 @@ def get_m7_financial_packet_with_cache(symbol: str) -> dict:
                     col_data = q_financials[col_date]
                     date_str = col_date.strftime("%Y-%m-%d") if hasattr(col_date, "strftime") else str(col_date)[:10]
                     
-                    # 多名称全兼容字段提取（解决 yfinance 索引名称变动 BUG）
                     def get_val(keys):
                         for k in keys:
                             if k in col_data.index and not pd.isna(col_data[k]):
