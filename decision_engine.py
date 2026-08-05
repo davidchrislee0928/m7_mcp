@@ -1,4 +1,4 @@
-# decision_engine.py (M7-ALPHA 中央高维量化决策引擎 · 内存动态量化因子生成完全体 · 突发高敏因数剥离提权版)
+# decision_engine.py (M7-ALPHA Central Quant Strategic Decision Engine - Multi-Factor Synthesis)
 import os
 import json
 import random
@@ -9,7 +9,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 from dotenv import load_dotenv
 
-print("⚙️ [M7-TRACE-BOOT] 正在加载 M7 决策大脑动态因子解算环境...")
+print("⚙️ [M7-TRACE-BOOT] Loading M7 Decision Brain dynamic factor computation environment...")
 load_dotenv()
 
 API_KEY_POOL = [
@@ -28,16 +28,16 @@ for k in API_KEY_POOL:
             active_google_keys.append(clean_k)
 
 if not active_google_keys:
-    print("❌ [M7-FATAL] 铁血审计长官熔断：未在环境配置文件中发现任何可用的 GOOGLE_API_KEY！")
+    print("❌ [M7-FATAL] Chief Auditor Circuit Breaker: No valid GOOGLE_API_KEY found in configuration!")
     sys.exit(1)
 
 
 def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, stock_news, geo_news, time_prompt, urgent_intel=""):
     """
-    🚀【M7 高规格重构对齐】：增设 time_prompt 与 urgent_intel 独立形参，
-    实现冷、热基本面数据空间全方位剥离与独立解析
+    🚀 M7 Strategic Decision Engine: Integrates live prices, macro factors, 
+    technical indicators, fundamental audits, and urgent intelligence catalysts.
     """
-    print(f"🧠 [M7-DECISION-ENGINE] 正在从本地 Parquet 动态计算 [{ticker}] 均线与布林带矩阵...")
+    print(f"🧠 [M7-DECISION-ENGINE] Dynamically computing technical indicators for [{ticker}] from local Parquet cache...")
     
     PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
     BASE_CACHE_DIR = "/data" if os.path.exists("/data") else PROJECT_ROOT
@@ -50,7 +50,8 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
             df = pd.read_parquet(parquet_path)
             if not df.empty:
                 df.columns = [c.capitalize() for c in df.columns]
-                if "Date" in df.columns: df = df.sort_values("Date")
+                if "Date" in df.columns: 
+                    df = df.sort_values("Date")
                 
                 df["Computed_MA5"] = df["Close"].rolling(window=5).mean()
                 df["Computed_MA20"] = df["Close"].rolling(window=20).mean()
@@ -71,18 +72,19 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
                         break
 
                 latest_market_metrics = {
-                    "最新实际收盘价": round(float(target_row.get("Close", 0)), 2),
-                    "5_day_MA(5日均线)": round(float(target_row.get("Computed_MA5", 0)), 2),
-                    "20_day_MA(20日均线)": round(float(target_row.get("Computed_MA20", 0)), 2),
-                    "布林带上轨(Boll_Upper)": round(float(target_row.get("Computed_Boll_Upper", 0)), 2),
-                    "布林带中轨(Boll_Mid)": round(float(target_row.get("Computed_Boll_Mid", 0)), 2),
-                    "布林带下轨(Boll_Lower)": round(float(target_row.get("Computed_Boll_Lower", 0)), 2),
-                    "MACD物理状态": "零轴上方多头放量形态" if float(target_row.get("Computed_MACD", 0)) >= 0 else "零轴下方空头修正形态"
+                    "Latest_Close_Price": round(float(target_row.get("Close", 0)), 2),
+                    "5_Day_MA": round(float(target_row.get("Computed_MA5", 0)), 2),
+                    "20_Day_MA": round(float(target_row.get("Computed_MA20", 0)), 2),
+                    "Bollinger_Upper": round(float(target_row.get("Computed_Boll_Upper", 0)), 2),
+                    "Bollinger_Mid": round(float(target_row.get("Computed_Boll_Mid", 0)), 2),
+                    "Bollinger_Lower": round(float(target_row.get("Computed_Boll_Lower", 0)), 2),
+                    "MACD_State": "Bullish momentum above zero line" if float(target_row.get("Computed_MACD", 0)) >= 0 else "Bearish correction below zero line"
                 }
-    except Exception as e: print(f"❌ 动态个股技术面计算崩溃: {e}")
+    except Exception as e: 
+        print(f"❌ Error computing dynamic technical metrics: {e}")
 
     broad_market_metrics = {}
-    index_map = {"标普500 (S&P 500)": "gspc", "道琼斯 (Dow 30)": "dji", "纳斯达克 (Nasdaq)": "ixic"}
+    index_map = {"S&P 500 Index": "gspc", "Dow Jones Industrial": "dji", "NASDAQ Composite": "ixic"}
     for idx_name, idx_file in index_map.items():
         try:
             idx_parquet_path = os.path.join(DATA_CACHE_DIR, f"{idx_file}_10y.parquet")
@@ -92,64 +94,97 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
                     close_series = df_idx["Close"].dropna().values.flatten() if "Close" in df_idx.columns else df_idx.iloc[:, df_idx.columns.get_level_values(-1) == 'Close'].dropna().values.flatten()
                     if len(close_series) >= 2:
                         broad_market_metrics[idx_name] = {
-                            "当前最新指数点位": f"{close_series[-1]:,.2f}",
-                            "大盘日内动态涨跌幅": f"{((close_series[-1] - close_series[-2]) / close_series[-2]) * 100:+.2f}%",
-                            "宏观大盘多空情绪": "绿色多头共振" if close_series[-1] > close_series[-2] else "红色空头承压"
+                            "Latest_Index_Level": f"{close_series[-1]:,.2f}",
+                            "Daily_Percentage_Change": f"{((close_series[-1] - close_series[-2]) / close_series[-2]) * 100:+.2f}%",
+                            "Market_Sentiment": "Bullish Resonance" if close_series[-1] > close_series[-2] else "Bearish Pressure"
                         }
-        except: pass
+        except: 
+            pass
 
     gemini_key = random.choice(active_google_keys)
     llm = ChatGoogleGenerativeAI(model="gemini-3.5-flash", temperature=0.1, google_api_key=gemini_key)
 
-    stock_news_summary = "\n".join([f"- [个股舆情] {n.get('title')}: {n.get('summary')[:250]}" for n in stock_news])
-    geo_news_summary = "\n".join([f"- [地缘前沿] {n.get('title')}: {n.get('summary')[:250]}" for n in geo_news])
+    stock_news_summary = "\n".join([f"- [Ticker Catalyst] {n.get('title')}: {n.get('summary')[:250]}" for n in stock_news])
+    geo_news_summary = "\n".join([f"- [Geopolitical Radar] {n.get('title')}: {n.get('summary')[:250]}" for n in geo_news])
 
-    # 🚀🔥【提示词矩阵高维剥离解耦大阵】
-    # 将 urgent_intel 与 audit_text 划归彼此完全隔离的数据源，强行对突发加急大新闻赋予最高级别逻辑指导权！
     prompt_context = f"""
-    您是 M7-ALPHA 量化主权基金的首席战略宏观与基本面联审专家。请对标的 [{ticker}] 执行未来一周的高规格专业操盘研报输出。
+    You are the Chief Quantitative Strategist and Fundamental Analyst at M7-ALPHA Capital. Generate an executive-grade trading decision report for ticker [{ticker}] for the upcoming trading week.
+
+    【🔴 MANDATORY ANALYSIS RULES】:
+    1. ⚡⚡【DATA SOURCE 5: URGENT EXECUTIVE INTELLIGENCE】:
+       This input contains real-time catalysts entered directly by executive leadership. If it mentions events such as "10% pre-market crash" or "private placement dilution", you MUST treat it as the HIGHEST PRIORITY SHORT-TERM CATALYST across all sections (especially Risk Control and Trading Strategy) to counter historical fundamental lag!
+    2. 【DATA SOURCE 4: FUNDAMENTAL AUDIT REPORT】:
+       Treat this as the structural baseline. Synthesize the long-term fundamental anchor from Source 4 with the short-term high-volatility impulse from Source 5.
+    3. 【TECHNICAL & MACRO ALIGNMENT】:
+       Combine the Macro Snapshot with exact Technical Data (Close Price, Moving Averages, Bollinger Bands) to derive precise resistance and support levels.
+    4. 🚫 【NO LATEX / MATH FORMATTING】:
+       DO NOT wrap prose sentences or text in LaTeX math characters (like $...$ or $$...$$). Write plain text and dollar figures directly as plain numbers (e.g., write "$18.22B" or "10%").
+    5. 🚫 【NO HALLUCINATIONS】:
+       If any historical data point is unavailable, report 'N/A' directly. Never fabricate historical financials.
+
+    【CURRENT TIMEFRAME VIEW】: {period_choice}
     
-    【🔴 铁血深度审计最高主权要求】：
-    你的分析过程必须在对应的模块里，显式地提及并深度解读以下输入因子（决不能省略）：
-    1. ⚡⚡【长官单独加急注入的突发最高权时空情报（数据源五）】：
-       此条为长官手工捕获的最新最火爆盘前、资本突发情报。如果其中提及类似“盘前大跌10%”、“80B定向融资稀释”等重磅突发事实，必须在四大模块（尤其是风险及实盘策略）中将其作为【全网一号突发变量因子】优先并网计算，对冲陈旧基本面带来的认知断层！
-    2. 必须提及【数据源四】本地落盘的 FMP 核心财务库，将其视作长期底座，与数据源五的短期剧烈波动进行“长周期面+短周期点”的综合跨维度因子共振推演。
-    3. 严格结合大盘气象快照、Parquet 技术面实际数据（股价、均线、布林带具体数值），解算出精准的阻力位与支撑位。
-    
-    【当前看盘时基视口】: {period_choice}
-    
-    【数据源一：最新时钟基准时空价格核】
+    【DATA SOURCE 1: LIVE BENCHMARK EXECUTION PRICE】
     {time_prompt}
     
-    【数据源二：美国三大主权股指大盘气象快照】
+    【DATA SOURCE 2: U.S. MAJOR INDICES MACRO SNAPSHOT】
     {json.dumps(broad_market_metrics, ensure_ascii=False, indent=2)}
     
-    【数据源三：最新个股实盘 Parquet 技术面动态解算快照】
+    【DATA SOURCE 3: REAL-TIME TECHNICAL INDICATORS (PARQUET ENGINE)】
     {json.dumps(latest_market_metrics, ensure_ascii=False, indent=2)}
     
-    【数据源四：本地落盘固化的 FMP 核心财务审计长卷（长期底座）】
-    {audit_text if audit_text else "暂无持久化财务冷数据。"}
+    【DATA SOURCE 4: PERSISTENT FUNDAMENTAL AUDIT REPORT (STRUCTURAL BASELINE)】
+    {audit_text if audit_text else "No cached fundamental report available."}
     
-    【数据源五：📢 长官独占加急通道注入的实盘突发头条因子（短期最高热变量）】
-    ➡️ 【突发事实】: {urgent_intel if urgent_intel else "【当前市场平静，无长官加急手动录入情报，一切基于常规多维数据流进行平稳解算。】"}
+    【DATA SOURCE 5: 📢 URGENT EXECUTIVE INTELLIGENCE STREAM (HIGHEST PRIORITY IMPULSE)】
+    ➡️ 【URGENT FACTOR】: {urgent_intel if urgent_intel else "Market conditions calm. No custom urgent intelligence entered by executive leadership. Proceeding with standard multi-factor synthesis."}
     
-    【数据源六：M7 双翼高敏舆情雷达网】
-    * 个股前沿快讯摘要:
+    【DATA SOURCE 6: M7 HIGH-SENSITIVITY NEWS RADAR】
+    * Ticker News Feed:
     {stock_news_summary}
-    * 全球地缘政治动向:
+    * Geopolitical Intelligence:
     {geo_news_summary}
     
-    请严格基于上述完全解耦、无冲突的数据大坝，输出包含以下四大硬核结构的专业操盘研报（要把数据和逻辑平铺展开，拒绝任何含糊的泛化分析）：
+    Please output a comprehensive, structured quantitative trading report using EXACTLY the following 4 section headings in Markdown:
     
-    ### 1️⃣ 【核心决策方向与全维数据引证矩阵】
-    ### 2️⃣ 【技术面物理状态与核心价格推演】
-    ### 3️⃣ 【未来一周涨势评级与多维因子共振逻辑】
-    ### 4️⃣ 【实盘防卷操作策略与全方位风控预案】
+    ### 1️⃣ 【Executive Direction & Multi-Factor Evidence Matrix】
+    ### 2️⃣ 【Technical Indicator State & Key Target Price Levels】
+    ### 3️⃣ 【Weekly Outlook Rating & Multi-Factor Convergence Logic】
+    ### 4️⃣ 【Actionable Trading Strategy & Risk Management Plan】
     """
 
     try:
         message = HumanMessage(content=prompt_context)
         ai_message = llm.invoke([message])
-        return ai_message.content
+        
+        # 1️⃣ 提取纯文本 content（安全处理 str 和 list 多种返回类型）
+        raw_content = ai_message.content
+        if isinstance(raw_content, list):
+            fragments = []
+            for block in raw_content:
+                if isinstance(block, dict) and 'text' in block:
+                    fragments.append(str(block['text']))
+                else:
+                    fragments.append(str(block))
+            clean_res = "".join(fragments)
+        else:
+            clean_res = str(raw_content)
+
+        # 2️⃣ 彻底斩断 LaTeX 字体斜体粘连 BUG：
+        # 将被 $ ... $ 包裹的长文本，或单独的美元符号全部进行转义或替换，
+        # 确保 Streamlit 把它当成纯文本/Markdown 渲染，绝不触发 KaTeX 公式引擎！
+        import re
+        
+        # 物理剥离包裹长英文句子的单美元符号 (如 $200B Anthropic...$ -> 200B Anthropic...)
+        clean_res = re.sub(r'\$([^\$\n]{2,})\$', r'\1', clean_res)
+        
+        # 消除 Note: 被 * ... * 强行包裹造成的全段斜体
+        clean_res = re.sub(r'\*(Note:[^*]+)\*', r'\1', clean_res)
+        
+        # 将剩下的单个美元符号（如 $200B）转义为 \$，防止 Streamlit 前端误判
+        clean_res = clean_res.replace('$', '\\$')
+        
+        return clean_res
+
     except Exception as err:
-        return f"❌ [M7-DECISION-FATAL] 策略矩阵撞墙: {str(err)}"
+        return f"❌ [M7-DECISION-FATAL] Strategic decision matrix execution failed: {str(err)}"

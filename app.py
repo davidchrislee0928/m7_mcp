@@ -1,18 +1,20 @@
-# app.py (M7-ALPHA 主界面控制台终端 - 作用域完全加固·突发因数完全解耦并网版)
+# app.py (M7-ALPHA Main Executive Console - English Edition & Clean Dynamic NASDAQ-100 Fetcher)
 import streamlit as strl
 import os
 import sys
 import json
 import time
 import threading
-import random  # 🚀 用于休盘期高频动态千分位脉冲测试
+import random
 from datetime import datetime
 import pytz
 import pandas as pd
 import yfinance as yf
+import requests
+from bs4 import BeautifulSoup
 
 # =====================================================================
-# 🔌 M7-ALPHA 增强型宏观与舆情双向引擎注入点
+# 🔌 M7-ALPHA Dual Engine Injections
 # =====================================================================
 import macro_engine
 import news_engine
@@ -33,31 +35,108 @@ else:
 DATA_CACHE_DIR = os.path.join(BASE_CACHE_DIR, "data_cache")
 os.makedirs(DATA_CACHE_DIR, exist_ok=True)
 
-# 全时态实时最新价格物理快照路径
 LIVE_SNAPSHOT_PATH = os.path.join(DATA_CACHE_DIR, "m7_live_prices_snapshot.json")
 
-NASDAQ_100_POOL = sorted(list(set([
-    "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "NVDA", "META", "TSLA", "AVGO", "PEP",
-    "COST", "CSCO", "NFLX", "AMD", "CMCSA", "TMUS", "ADBE", "TXN", "INTC", "HON",
-    "AMGN", "QCOM", "INTU", "SBUX", "ISRG", "MDLZ", "GILD", "BKNG", "AMAT", "ADI",
-    "ADP", "VRTX", "REGN", "PYPL", "FISV", "LRCX", "MU", "PANW", "SNPS", "CDNS"
-])))
+# =====================================================================
+# 🌐 Dynamic Clean NASDAQ-100 Fetcher (Silent Logging & Non-Wikipedia)
+# =====================================================================
+# =====================================================================
+# 🌐 Dynamic Clean NASDAQ-100 Fetcher (Bug Fixed: Strict Ticker Filter)
+# =====================================================================
+def get_nasdaq_100_tickers() -> list:
+    """
+    Dynamically fetch NASDAQ-100 tickers with clean single-line logs
+    and strict symbol filtering to avoid scraper noise.
+    """
+    cache_path = os.path.join(DATA_CACHE_DIR, "nasdaq100_constituents_cache.json")
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    
+    # 1. Local 24-Hour Cache Check
+    if os.path.exists(cache_path):
+        try:
+            with open(cache_path, "r", encoding="utf-8") as f:
+                c_data = json.load(f)
+                if c_data.get("fetched_at") == today_str and len(c_data.get("tickers", [])) >= 90:
+                    print(f"🟢 [M7-TICKERS] Loaded {len(c_data['tickers'])} NASDAQ-100 tickers from local daily cache.")
+                    return sorted(c_data["tickers"])
+        except Exception:
+            pass
 
-strl.set_page_config(page_title="M7-ALPHA 量化多智能体终端", page_icon="📊", layout="wide")
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+
+    # 2. Source A: Open JSON API (GitHub Feed)
+    feed_url = "https://yfiua.github.io/index-constituents/constituents-nasdaq100.json"
+    try:
+        resp = requests.get(feed_url, headers=headers, timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            tickers = [item.get("symbol", "").strip().replace(".", "-") for item in data if item.get("symbol")]
+            # 💡 强力过滤：排除包含数字的价格脏数据，只保留纯字母或带连字符的代码
+            clean_tickers = sorted(list(set([
+                t.upper() for t in tickers 
+                if t and (t.isalpha() or ("-" in t and t.replace("-", "").isalpha()))
+            ])))
+            if len(clean_tickers) >= 90:
+                with open(cache_path, "w", encoding="utf-8") as wf:
+                    json.dump({"fetched_at": today_str, "tickers": clean_tickers}, wf, indent=2)
+                print(f"🟢 [M7-TICKERS] Successfully fetched {len(clean_tickers)} tickers from Source: GitHub Open Index Feed.")
+                return clean_tickers
+    except Exception:
+        print("⚠️ [M7-TICKERS] Source A (GitHub Index Feed) unavailable. Trying Source B...")
+
+    # 3. Source B: Slickcharts (Clean Table DOM Scraping)
+    slick_url = "https://www.slickcharts.com/nasdaq100"
+    try:
+        resp = requests.get(slick_url, headers=headers, timeout=5)
+        if resp.status_code == 200:
+            soup = BeautifulSoup(resp.text, "html.parser")
+            # 💡 锁定 main 区域内的表格，避免混入侧边栏 ETF 价格
+            main_table = soup.find("table", class_="table")
+            tickers = []
+            if main_table:
+                rows = main_table.find_all("tr")
+                for row in rows:
+                    cols = row.find_all("td")
+                    if len(cols) >= 3:
+                        symbol_col = cols[2].text.strip().replace(".", "-")
+                        # 💡 强力过滤：确保抓到的只有纯英文股票代码（如 NVDA, GOOGL, BRK-B）
+                        if symbol_col and (symbol_col.isalpha() or ("-" in symbol_col and symbol_col.replace("-", "").isalpha())):
+                            tickers.append(symbol_col.upper())
+                            
+            clean_tickers = sorted(list(set(tickers)))
+            if len(clean_tickers) >= 90:
+                with open(cache_path, "w", encoding="utf-8") as wf:
+                    json.dump({"fetched_at": today_str, "tickers": clean_tickers}, wf, indent=2)
+                print(f"🟢 [M7-TICKERS] Successfully fetched {len(clean_tickers)} tickers from Source: Slickcharts.com.")
+                return clean_tickers
+    except Exception:
+        print("⚠️ [M7-TICKERS] Source B (Slickcharts) unavailable. Falling back to local default pool.")
+
+    # 4. Fallback Pool
+    fallback_pool = sorted(list(set([
+        "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "NVDA", "META", "TSLA", "AVGO", "PEP",
+        "COST", "CSCO", "NFLX", "AMD", "CMCSA", "TMUS", "ADBE", "TXN", "INTC", "HON",
+        "AMGN", "QCOM", "INTU", "SBUX", "ISRG", "MDLZ", "GILD", "BKNG", "AMAT", "ADI",
+        "ADP", "VRTX", "REGN", "PYPL", "FISV", "LRCX", "MU", "PANW", "SNPS", "CDNS"
+    ])))
+    print(f"🟡 [M7-TICKERS] Loaded {len(fallback_pool)} tickers from System Default Hardened Fallback Pool.")
+    return fallback_pool
+NASDAQ_100_POOL = get_nasdaq_100_tickers()
+
+strl.set_page_config(page_title="M7-ALPHA Quant Multi-Agent Console", page_icon="📊", layout="wide")
 
 # =====================================================================
-# 🧠 🛡️ 【全局共享进程内存大坝】
+# 🧠 🛡️ Shared Process Memory
 # =====================================================================
 if "M7_GLOBAL_STATIC_MEM" not in globals():
     globals()["M7_GLOBAL_STATIC_MEM"] = {}
     globals()["M7_TARGET_TICKERS"] = ["GOOGL", "NVDA"]
 
-# 🚀🔥【动态主权个股锁】：用于跨标签页动态校准顶部四色指示灯
 if "M7_CURRENT_AUDIT_TICKER" not in strl.session_state:
     strl.session_state["M7_CURRENT_AUDIT_TICKER"] = "GOOGL" 
     
 def m7_async_market_core_pump():
-    """独立于 Streamlit 主进程之外的操作系统级守护线程"""
+    """Background daemon thread to pump real-time stock prices"""
     while True:
         try:
             ny_tz = pytz.timezone('America/New_York')
@@ -99,7 +178,7 @@ def m7_async_market_core_pump():
                         snapshot_data[t] = pack
                         
                     except Exception as inner_err:
-                        print(f"后台双轨打捞 {t} 异常: {inner_err}")
+                        print(f"Background stream error for {t}: {inner_err}")
                 
                 try:
                     with open(LIVE_SNAPSHOT_PATH, "w", encoding="utf-8") as wf:
@@ -108,7 +187,7 @@ def m7_async_market_core_pump():
             
             time.sleep(5 if is_open else 20)
         except Exception as global_err:
-            print(f"大坝主循环异常: {global_err}")
+            print(f"Background pump loop error: {global_err}")
             time.sleep(10)
 
 if "M7_THREAD_LOCK" not in globals():
@@ -117,7 +196,7 @@ if "M7_THREAD_LOCK" not in globals():
     t_pump.start()
 
 # =====================================================================
-# 🚀🔥【原子提权 Fragment 一】：秒级实时自驱动双时区主权时钟
+# 🚀 Fragment 1: Dual Timezone Real-time Clock
 # =====================================================================
 @strl.fragment(run_every=1)
 def atomic_live_clock_gateway():
@@ -127,26 +206,26 @@ def atomic_live_clock_gateway():
         bj_time, bj_date = now_bj.strftime("%H:%M:%S"), now_bj.strftime("%Y-%m-%d")
         ny_time, ny_date = now_ny.strftime("%H:%M:%S"), now_ny.strftime("%Y-%m-%d")
     except:
-        bj_time, bj_date = "00:00:00", "同步中..."
-        ny_time, ny_date = "00:00:00", "同步中..."
+        bj_time, bj_date = "00:00:00", "Syncing..."
+        ny_time, ny_date = "00:00:00", "Syncing..."
 
     c1, c2 = strl.columns(2)
-    c1.metric(label="🟢 北京时间 (SHANGHAI)", value=bj_time, delta=bj_date, delta_color="off")
-    c2.metric(label="🟠 纽约时间 (NEW YORK)", value=ny_time, delta=ny_date, delta_color="off")
+    c1.metric(label="🟢 BEIJING TIME (SHANGHAI)", value=bj_time, delta=bj_date, delta_color="off")
+    c2.metric(label="🟠 NEW YORK TIME (EST)", value=ny_time, delta=ny_date, delta_color="off")
 
 # =====================================================================
-# 🚀🔥【原子提权 Fragment 二】：昨收基准级·5s前台动态千分位 Trick 验证原子
+# 🚀 Fragment 2: Sidebar Prices Real-time Metric Component
 # =====================================================================
 @strl.fragment(run_every=5)
 def atomic_sidebar_prices_gateway(selected_list):
     if selected_list:
         globals()["M7_TARGET_TICKERS"] = selected_list
         
-        strl.markdown("### 💵 核心资产实时报价")
+        strl.markdown("### 💵 Live Asset Quotes")
         ny_tz = pytz.timezone('America/New_York')
         now_ny = datetime.now(ny_tz)
         is_market_open = now_ny.weekday() < 5 and ("09:30" <= now_ny.strftime("%H:%M") <= "16:00")
-        strl.caption("⚡ [M7 Trick 验证中] 股价已锁死千分位翻牌" if is_market_open else "🌙 [休盘期动态验证] 千分位5s自己秒跳更新")
+        strl.caption("⚡ [Real-time Mode] Live trading quotes active" if is_market_open else "🌙 [After-Hours Mode] Dynamic micro-tick simulation active")
 
         snapshot_fallback = {}
         if os.path.exists(LIVE_SNAPSHOT_PATH):
@@ -181,12 +260,12 @@ def atomic_sidebar_prices_gateway(selected_list):
                     p_delta_str = f"$0.000 (0.000%)"
                     m_color = "off"
                 
-                strl.metric(label=f"标的: {ticker}", value=f"${trick_curr_str}", delta=p_delta_str, delta_color=m_color)
+                strl.metric(label=f"Ticker: {ticker}", value=f"${trick_curr_str}", delta=p_delta_str, delta_color=m_color)
             else:
-                strl.caption(f"⏳ {ticker} 正在接入物理核心数据链...")
+                strl.caption(f"⏳ Connecting data stream for {ticker}...")
 
 # =====================================================================
-# 🗂️ 全局命名解耦与大盘气象
+# 🗂️ Global Naming & Macro Indicators Header
 # =====================================================================
 global_cached_macro = {}
 macro_data = {}  
@@ -200,63 +279,66 @@ except:
 
 title_col, clock_col = strl.columns([5, 5])
 with title_col:
-    strl.markdown("# 📊 M7-ALPHA 美国宏观经济指标")
+    strl.markdown("# 📊 M7-ALPHA U.S. Macroeconomic Indicators")
 with clock_col:
     atomic_live_clock_gateway()
 
 # =====================================================================
-# 🚀🔥【核心降维回嵌】：工业级四色数据主权物理指示灯大阵
+# 🚀 System Status Indicators Array
 # =====================================================================
 test_target = strl.session_state["M7_CURRENT_AUDIT_TICKER"]
 
-macro_light = "🟢 宏观经济指标大坝 [已并网]" if global_cached_macro else "🔴 宏观经济数据断流 [未接入]"
+macro_light = "🟢 Macro Indicator Reservoir [Connected]" if global_cached_macro else "🔴 Macro Indicator Stream [Disconnected]"
 try:
     test_news = news_engine.get_latest_news(query_type="stock", topic=test_target, limit=1)
-    news_light = f"🟢 舆情雷达网关 [{test_target} 已激活]" if test_news else "🔴 舆情雷达信源静默 [待重试]"
+    news_light = f"🟢 News Radar [{test_target} Active]" if test_news else "🔴 News Radar [Silent]"
 except:
-    news_light = "🔴 舆情雷达网络阻断 [熔断]"
+    news_light = "🔴 News Radar Network [Blocked]"
 
 kline_lower = os.path.join(DATA_CACHE_DIR, f"{test_target.lower()}_10y.parquet")
 kline_upper = os.path.join(DATA_CACHE_DIR, f"{test_target.upper()}_10y.parquet")
 
 if os.path.exists(kline_lower) or os.path.exists(kline_upper):
-    kline_light = f"🟢 10y二进制 [{test_target}] K线大坝 [落盘]"
+    kline_light = f"🟢 10y Parquet [{test_target}] [Cached]"
 else:
-    kline_light = f"🔴 10yK线 [{test_target}] Parquet大坝 [未同步]"
+    kline_light = f"🔴 10y K-line [{test_target}] [Unsynced]"
 
 fmp_file_check = os.path.join(DATA_CACHE_DIR, f"fmp_cache_{test_target}.json")
-fmp_light = f"🟢 FMP财务审计 [{test_target}] 有持久化缓存" if os.path.exists(fmp_file_check) else f"🔴 FMP离线资产 [{test_target}] 未建立"
+fmp_light = f"🟢 FMP Financial Audit [{test_target}] [Cached]" if os.path.exists(fmp_file_check) else f"🔴 FMP Offline Asset [{test_target}] [Missing]"
 
+# =====================================================================
+# 🚀 High-Contrast Status Indicator Cards (Enhanced Contrast UI)
+# =====================================================================
 strl.markdown(
     f"""
-    <div style="display: flex; gap: 10px; width: 100%; margin-bottom: 15px; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 220px; background-color: #111625; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-size: 11px; font-weight: bold; border: 1px solid #1f293d;">{macro_light}</div>
-        <div style="flex: 1; min-width: 220px; background-color: #111625; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-size: 11px; font-weight: bold; border: 1px solid #1f293d;">{news_light}</div>
-        <div style="flex: 1; min-width: 220px; background-color: #111625; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-size: 11px; font-weight: bold; border: 1px solid #1f293d;">{kline_light}</div>
-        <div style="flex: 1; min-width: 220px; background-color: #111625; padding: 6px 12px; border-radius: 4px; font-family: monospace; font-size: 11px; font-weight: bold; border: 1px solid #1f293d;">{fmp_light}</div>
+    <div style="display: flex; gap: 12px; width: 100%; margin-bottom: 20px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 220px; background: #1e293b; color: #ffffff; padding: 10px 14px; border-radius: 6px; font-family: 'Segoe UI', monospace; font-size: 12px; font-weight: 600; border: 1px solid #334155; box-shadow: 0 2px 4px rgba(0,0,0,0.15); display: flex; align-items: center;">{macro_light}</div>
+        <div style="flex: 1; min-width: 220px; background: #1e293b; color: #ffffff; padding: 10px 14px; border-radius: 6px; font-family: 'Segoe UI', monospace; font-size: 12px; font-weight: 600; border: 1px solid #334155; box-shadow: 0 2px 4px rgba(0,0,0,0.15); display: flex; align-items: center;">{news_light}</div>
+        <div style="flex: 1; min-width: 220px; background: #1e293b; color: #ffffff; padding: 10px 14px; border-radius: 6px; font-family: 'Segoe UI', monospace; font-size: 12px; font-weight: 600; border: 1px solid #334155; box-shadow: 0 2px 4px rgba(0,0,0,0.15); display: flex; align-items: center;">{kline_light}</div>
+        <div style="flex: 1; min-width: 220px; background: #1e293b; color: #ffffff; padding: 10px 14px; border-radius: 6px; font-family: 'Segoe UI', monospace; font-size: 12px; font-weight: 600; border: 1px solid #334155; box-shadow: 0 2px 4px rgba(0,0,0,0.15); display: flex; align-items: center;">{fmp_light}</div>
     </div>
     """,
     unsafe_allow_html=True
 )
 
 # =====================================================================
-# ⚙️ 控制中心侧边栏
+# ⚙️ Sidebar Control Panel
 # =====================================================================
 with strl.sidebar:
-    strl.title("⚙️ 纳斯达克100股票选择")
-    strl.caption("架构层: 工业级单画布四轴强联动合龙内核")
+    strl.title("⚙️ NASDAQ 100 Ticker Selector")
+    strl.caption("Architecture: Multi-axis Synchronized Quant Engine")
     strl.markdown("---")
     
-    selected_tickers = strl.multiselect("🔮 请选择要审计的纳指成份股:", options=NASDAQ_100_POOL, default=["GOOGL", "NVDA"])
+    selected_tickers = strl.multiselect("🔮 Select tickers for audit:", options=NASDAQ_100_POOL, default=["GOOGL", "NVDA"])
     if selected_tickers:
         globals()["M7_TARGET_TICKERS"] = selected_tickers
         
-    period_choice = strl.radio("📈 K线周期切换:", options=["日K", "周K", "月K"], index=0, horizontal=True)
+    period_choice = strl.radio("📈 Candle Period Switch:", options=["Daily", "Weekly", "Monthly"], index=0, horizontal=True)
     strl.markdown("---")
     
     atomic_sidebar_prices_gateway(selected_tickers)
     
-    if strl.button("🗑️ 物理粉碎死锁缓存 (校准当日日期)", use_container_width=True):
+    if strl.button("🗑️ Purge Local Cache (Recalibrate Date)", use_container_width=True):
         strl.session_state["audit_cache"] = ""
         for key in list(strl.session_state.keys()):
             if "decision_" in key: del strl.session_state[key]
@@ -268,12 +350,12 @@ with strl.sidebar:
                 os.makedirs(DATA_CACHE_DIR, exist_ok=True)
             except: pass
                 
-        strl.success("💥 持久化大坝资产已全数彻底粉碎！空仓重新点火中...")
+        strl.success("💥 Local cache purged successfully!")
         time.sleep(1)
         strl.rerun()
 
 # =====================================================================
-# 📊【天幕墙大盘核心原生态指数矩阵渲染】（已修复天级缓存死锁）
+# 📊 Core Market Indices Rendering (Daily Cache Verification Fixed)
 # =====================================================================
 index_snapshot = {
     "GSPC": {"val": "0.00", "arrow": "—", "color": "#58a6ff", "pct": "0.00%"}, 
@@ -287,7 +369,6 @@ for idx_key, idx_ticker in index_map.items():
     idx_parquet = os.path.join(DATA_CACHE_DIR, f"{idx_ticker.replace('^', '').lower()}_10y.parquet")
     df_idx = None
     
-    # 🕵️‍♂️ 引入硬核天级修改时间戳验证网关
     if os.path.exists(idx_parquet):
         file_mod_date = datetime.fromtimestamp(os.path.getmtime(idx_parquet)).strftime("%Y-%m-%d")
         if file_mod_date == today_date_str:
@@ -296,10 +377,8 @@ for idx_key, idx_ticker in index_map.items():
             except: 
                 pass
 
-    # 📡 若无今日缓存，穿透打捞最新全量因子
     if df_idx is None or df_idx.empty:
         try:
-            # 下载 5 天历史确保能拿到最新前值进行同比/环比解算
             df_idx = yf.download(idx_ticker, period="5d", interval="1d", auto_adjust=True)
             if not df_idx.empty:
                 df_idx = df_idx.dropna(how='all')
@@ -307,9 +386,8 @@ for idx_key, idx_ticker in index_map.items():
                     df_idx.columns = df_idx.columns.get_level_values(0)
                 df_idx.to_parquet(idx_parquet, engine="pyarrow")
         except Exception as net_idx_err:
-            print(f"❌ 大盘股指网络打捞断流 [{idx_ticker}]: {net_idx_err}")
+            print(f"❌ Index network fetch failed [{idx_ticker}]: {net_idx_err}")
 
-    # 📐 动态重组高精收盘变动率
     if df_idx is not None and not df_idx.empty:
         try:
             clean_series = df_idx["Close"].dropna().values.flatten()
@@ -319,9 +397,10 @@ for idx_key, idx_ticker in index_map.items():
                 arrow, color_code = ("▲", "#00FF00") if change_pct > 0 else (("▼", "#FF4444") if change_pct < 0 else ("—", "#58a6ff"))
                 index_snapshot[idx_key] = {"val": f"{current_close:,.2f}", "arrow": arrow, "color": color_code, "pct": f"{change_pct:+.2f}%"}
         except Exception as calc_err: 
-            print(f"⚠️ 矩阵降维解算异常 [{idx_ticker}]: {calc_err}")
+            print(f"⚠️ Index calculation error [{idx_ticker}]: {calc_err}")
+
 macro_cards_html = ""
-idx_labels = {"GSPC": "S&P 500 (标普大盘)", "DJI": "DOW 30 (道指工业)", "IXIC": "NASDAQ (纳指综合)"}
+idx_labels = {"GSPC": "S&P 500 Index", "DJI": "Dow Jones Industrial", "IXIC": "NASDAQ Composite"}
 for k, item in index_snapshot.items():
     macro_cards_html += f'<div style="flex: 1; min-width: 140px; background-color: #1a2333; padding: 8px 12px; border-radius: 6px; border-top: 3px solid {item["color"]}; box-shadow: 0 4px 6px rgba(0,0,0,0.4);"><p style="margin: 0 0 4px 0; color: #ffcc00; font-size: 11px; font-weight: bold; font-family: sans-serif; white-space: nowrap;">{idx_labels[k]}</p><p style="margin: 0; color: {item["color"]}; font-size: 14px; font-weight: bold; font-family: monospace; white-space: nowrap;"><span style="font-size:10px; margin-right:2px;">{item["arrow"]}</span>{item["val"]} <span style="font-size:9px; font-weight:normal;">({item["pct"]})</span></p></div>'
 
@@ -333,7 +412,7 @@ if macro_data:
             display_val = str(val)
             if prev == "STATIC":
                 card_arrow = "📢"
-                card_color = "#00FF00" if ("新增" in display_val or "+" in display_val or "涨" in display_val) else ("#FF4444" if ("降" in display_val or "-" in display_val) else "#f0883e")
+                card_color = "#00FF00" if ("+" in display_val or "up" in display_val.lower()) else ("#FF4444" if ("-" in display_val or "down" in display_val.lower()) else "#f0883e")
             elif val != "N/A" and prev != "N/A":
                 try:
                     num_curr, num_prev = float(val.replace("%", "").strip()), float(prev.replace("%", "").strip())
@@ -346,32 +425,32 @@ strl.html(f'<div class="macro-container">{macro_cards_html}</div><style>body {{ 
 strl.markdown("---")
 
 # =====================================================================
-# 🚨 标签页及大屏 K 线渲染层
+# 🚨 Main Navigation Tabs
 # =====================================================================
-tab_tech, tab_market, tab_decision = strl.tabs(["📈 动态技术面多显大屏", "🔮 智能体基本面审计长卷", "🦅 M7 主权决策战略操作仓"])
+tab_tech, tab_market, tab_decision = strl.tabs(["📈 Technical Analysis Dashboard", "🔮 Agent Fundamental Audit", "🦅 M7 Strategic Executive Suite"])
 
 with tab_tech:
-    time_mode = strl.radio("📊 选择看盘时基视口:", options=["1m", "3m", "6m", "1y", "5y", "Max"], index=2, horizontal=True, key="m7_global_time_mode")
+    time_mode = strl.radio("📊 Select Timeframe View:", options=["1m", "3m", "6m", "1y", "5y", "Max"], index=2, horizontal=True, key="m7_global_time_mode")
     strl.markdown("---")
-    with strl.expander("📊 【🌍 纳斯达克综合指数 (NASDAQ Composite)】 核心大周期走势图", expanded=True):
+    with strl.expander("📊 【NASDAQ Composite Index (^IXIC)】 Macro Overview Chart", expanded=True):
         fig_nasdaq = generate_m7_clean_charts("^IXIC", period_choice, time_range_mode=time_mode)
         if fig_nasdaq is not None: strl.plotly_chart(fig_nasdaq, width="stretch", key=f"t_nasdaq_base_{period_choice}_{time_mode}")
-    strl.markdown("#### 🏢 标的成份股技术面板")
-    if not selected_tickers: strl.info("💡 提示：请在左侧控制中心选择标的。")
+    strl.markdown("#### 🏢 Constituent Tickers Panel")
+    if not selected_tickers: strl.info("💡 Note: Please select target tickers from the sidebar.")
     else:
         for ticker in selected_tickers:
-            with strl.expander(f"展开/收起 【{ticker}】 技术面看板", expanded=True):
+            with strl.expander(f"Expand / Collapse 【{ticker}】 Technical Chart", expanded=True):
                 fig = generate_m7_clean_charts(ticker, period_choice, time_range_mode=time_mode)
                 if fig is not None: strl.plotly_chart(fig, width="stretch", key=f"t_{ticker}_{period_choice}_{time_mode}")
 
 # =====================================================================
-# 🔮 智能体基本面审计长卷 (第二页：负责稳健的 FMP 冷资产管理)
+# 🔮 Fundamental Audit Tab
 # =====================================================================
 with tab_market:
     if not selected_tickers: 
-        strl.info("💡 提示：请在左侧控制中心锁定股票。")
+        strl.info("💡 Note: Please select target tickers from the sidebar.")
     else:
-        audit_target = strl.selectbox("🎯 请选择本次点火 AI 联审的核心目标:", options=selected_tickers, key="fmp_audit_target_selector")
+        audit_target = strl.selectbox("🎯 Select Core Ticker for AI Audit:", options=selected_tickers, key="fmp_audit_target_selector")
         
         if strl.session_state["M7_CURRENT_AUDIT_TICKER"] != audit_target:
             strl.session_state["M7_CURRENT_AUDIT_TICKER"] = audit_target
@@ -379,15 +458,15 @@ with tab_market:
             
         news_col1, news_col2 = strl.columns(2)
         with news_col1:
-            strl.subheader(f"🏢 {audit_target} 最新关联热点摘要")
+            strl.subheader(f"🏢 {audit_target} Related News Feed")
             stock_news_list = news_engine.get_latest_news(query_type="stock", topic=audit_target, limit=7)
             
             if not stock_news_list:
-                strl.caption("📡 暂无关联实时个股新闻流")
+                strl.caption("📡 No real-time stock news stream available")
             else:
                 for item in stock_news_list:
-                    title_clean = str(item.get('title', '未命名舆情序列')).strip()
-                    summary_text = item.get("summary", "无摘要详情")
+                    title_clean = str(item.get('title', 'Untitled Article')).strip()
+                    summary_text = item.get("summary", "No detailed summary")
                     src_name = item.get("source_name", "Global News")
                     news_url = item.get("url", "")
                     
@@ -398,21 +477,21 @@ with tab_market:
                         clean_time = t_str if any(m in t_str for m in ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]) else t_str[:16]
                     
                     with strl.expander(f"⏱️ [{clean_time}] 📌 {title_clean}", expanded=False):
-                        strl.markdown(f"**📅 发布时刻:** <span style='color:#ffaa00; font-weight:bold;'>{clean_time}</span>", unsafe_allow_html=True)
+                        strl.markdown(f"**📅 Timestamp:** <span style='color:#ffaa00; font-weight:bold;'>{clean_time}</span>", unsafe_allow_html=True)
                         strl.markdown("---")
-                        strl.markdown(f"**信源機構:** `{src_name}`")
+                        strl.markdown(f"**Source:** `{src_name}`")
                         strl.markdown(summary_text)
-                        if news_url: strl.markdown(f"🔗 [查看完整信源]({news_url})")
+                        if news_url: strl.markdown(f"🔗 [Read Full Article]({news_url})")
                     
         with news_col2:
-            strl.subheader("🌍 全球地缘政治前沿动向")
+            strl.subheader("🌍 Geopolitical Intelligence Stream")
             geo_news_list = news_engine.get_latest_news(query_type="geopolitics", limit=7)
-            if not geo_news_list: strl.caption("📡 暂无地缘政治前沿快讯")
+            if not geo_news_list: strl.caption("📡 No real-time geopolitical updates")
             else:
                 for item in geo_news_list:
-                    title_clean = str(item.get('title', '未命名地缘异动')).strip()
-                    summary_text = item.get("summary", "无摘要详情")
-                    src_name = item.get("source_name", "M7地缘雷达")
+                    title_clean = str(item.get('title', 'Untitled Event')).strip()
+                    summary_text = item.get("summary", "No detailed summary")
+                    src_name = item.get("source_name", "M7 Radar")
                     news_url = item.get("url", "")
                     
                     raw_time = item.get("publishedAt")
@@ -422,15 +501,15 @@ with tab_market:
                         clean_time = t_str if any(m in t_str for m in ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]) else t_str[:16]
                     
                     with strl.expander(f"⏱️ [{clean_time}] ⚠️ {title_clean}", expanded=False):
-                        strl.markdown(f"**📅 爆发时刻:** <span style='color:#ff5555; font-weight:bold;'>{clean_time}</span>", unsafe_allow_html=True)
+                        strl.markdown(f"**📅 Timestamp:** <span style='color:#ff5555; font-weight:bold;'>{clean_time}</span>", unsafe_allow_html=True)
                         strl.markdown("---")
-                        strl.markdown(f"**信源機構:** `{src_name}`")
+                        strl.markdown(f"**Source:** `{src_name}`")
                         strl.markdown(summary_text)
-                        if news_url: strl.markdown(f"🔗 [穿透情报原件]({news_url})")
+                        if news_url: strl.markdown(f"🔗 [Read Source]({news_url})")
                     
         strl.markdown("---")
 
-        strl.markdown("### 📝 多智能体基本面联审研报")
+        strl.markdown("### 📝 Multi-Agent Fundamental Audit Report")
         local_json_path = os.path.join(DATA_CACHE_DIR, f"fmp_cache_{audit_target}.json")
         loaded_historical_report = ""
         if os.path.exists(local_json_path):
@@ -444,40 +523,41 @@ with tab_market:
         report_container = strl.empty()
         if loaded_historical_report:
             report_container.markdown(loaded_historical_report.replace("<br>", " "))
-            strl.caption("📌 当前为固化的本地持久化历史基本面审计。如需最新季度穿透，请点击下方大按钮。")
+            strl.caption("📌 Showing cached audit report. Click below to re-run AI engine.")
         else:
-            report_container.info(f"⏳ 物理大坝中暂无 [{audit_target}] 的历史研报，请强制点火生成。")
+            report_container.info(f"⏳ No cached report found for [{audit_target}]. Please trigger AI Audit.")
 
-        if strl.button("🚀 强制点火状态机 -> 重新生成 AI 多维基本面联审", use_container_width=True):
-            with strl.spinner(f"⚡ 正在全量穿透深度审计..."):
+        if strl.button("🚀 Trigger AI Fundamental Audit Engine", use_container_width=True):
+            with strl.spinner(f"⚡ Conducting deep fundamental audit..."):
                 try:
+                    time.sleep(1)
                     audit_result = run_m7_audit(audit_target, period_choice)
                     if audit_result:
                         try:
                             t_obj = yf.Ticker(audit_target)
                             real_market_cap = t_obj.info.get("marketCap", 0)
                             if real_market_cap > 0:
-                                formatted_cap = f"${real_market_cap / 1e12:.2f} 万亿美元"
-                                audit_result = audit_result.replace("得原始市值为0 (未导入实时市值)", f"经动态校准真实市值约为 {formatted_cap}")
+                                formatted_cap = f"${real_market_cap / 1e12:.2f} Trillion"
+                                audit_result = audit_result.replace("Market Cap: 0", f"Calibrated Market Cap: {formatted_cap}")
                         except: pass
 
                         report_container.markdown(audit_result.replace("<br>", " "))
                         meta_bundle = {"fetched_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "packet": {}, "audit_report": audit_result}
                         with open(local_json_path, "w", encoding="utf-8") as wf: 
                             json.dump(meta_bundle, wf, ensure_ascii=False, indent=2)
-                        strl.success(f"🎉 [{audit_target}] 联审研报固化封盘成功！已完美落盘存储。")
+                        strl.success(f"🎉 [{audit_target}] Audit Report generated and saved successfully!")
                         strl.rerun()  
-                except Exception as e: strl.error(f"内部异动崩溃: {e}")
+                except Exception as e: strl.error(f"Execution Error: {e}")
 
 # =====================================================================
-# 🦅 M7 主权决策战略操作仓 (第三页：长官加急情报强锁定解耦并网)
+# 🦅 Strategic Decision Engine Tab
 # =====================================================================
 with tab_decision:
-    strl.markdown(f"### 🦅 Gemini 3.5 多维因子自适应跨空间终极决策建议")
+    strl.markdown(f"### 🦅 Gemini 3.5 Adaptive Quant Decision Console")
     decision_target = audit_target if 'audit_target' in locals() else (selected_tickers[0] if selected_tickers else None)
     
     if not decision_target: 
-        strl.info("⏳ 正在等待数据链合龙... 请选择标的。")
+        strl.info("⏳ Waiting for data synchronization... Please select a ticker.")
     else:
         local_json_file = os.path.join(DATA_CACHE_DIR, f"fmp_cache_{decision_target}.json")
         base_audit_ready = False
@@ -494,26 +574,26 @@ with tab_decision:
 
         if not base_audit_ready:
             strl.error(
-                f"🛑 **[M7-STRATEGY-BLOCK] 战略决策舱触发安全熔断锁死！**\n\n"
-                f"检测到核心目标标的 **[{decision_target}]** 尚未完成第二页的**『AI 多维基本面联审研报』**持久化资产落盘固化。\n\n"
-                f"💡 **战略主权长官指令:** 请立刻前往 **「🔮 智能体基本面审计长卷」** 标签页，点击大按钮启动基本面审计状态机。完成审计落盘后，本决策操作仓将自动完璧解锁并网！"
+                f"🛑 **[M7-STRATEGY-BLOCK] Decision Module Locked!**\n\n"
+                f"Target ticker **[{decision_target}]** has not completed its fundamental audit.\n\n"
+                f"💡 **Action Required:** Please navigate to **「🔮 Agent Fundamental Audit」** tab and run the AI audit first."
             )
-            strl.button(f"🔒 决策状态机已锁定 -> 请先完成 [{decision_target}] 基本面审计", disabled=True, use_container_width=True)
+            strl.button(f"🔒 Module Locked -> Complete [{decision_target}] Audit First", disabled=True, use_container_width=True)
             
         else:
-            strl.success(f"🟢 [M7-FACTOR-READY] 因子链合龙成功！标的 [{decision_target}] 基本面审计资产已就位，战略计算网关允许通行。")
+            strl.success(f"🟢 [M7-FACTOR-READY] Fundamental audit linked! Target [{decision_target}] ready for strategic analysis.")
             
-            # 🚀🔥【彻底分离 · 突发不与 FMP 混淆】：平嵌加急情报纯净舱，用独立进程 Key 规避重塑冲突
-            strl.markdown("#### 📢 华尔街加急情报输入舱")
+            strl.markdown("#### 📢 Urgent Intelligence Stream")
             urgent_intelligence = strl.text_area(
-                label=f"💬 请长官动态追加关于 [{decision_target}] 的最新盘前突发、大面积砸盘或资本层异动因子（若无可不填）：",
-                placeholder="例如：谷歌盘前突发暴跌10% / 传Alphabet计划定向融资80B巨额资本产生股份稀释恐慌...",
+                label=f"💬 Append custom catalysts / emergency market updates for [{decision_target}] (Optional):",
+                placeholder="e.g., Unexpected 10% pre-market plunge / Rumored $80B private placement causing dilution fears...",
                 key=f"m7_urgent_intel_stream_{decision_target}"
             )
             
-            if strl.button(f"🔥 点火决策状态机 -> 下达 [{decision_target}] 操盘战略", use_container_width=True):
-                with strl.spinner(f"🦅 M7 首席战略家 Gemini 正在动态执行因子交叉解算..."):
-                    current_live_price_str = "未获取到实时价"
+            if strl.button(f"🔥 Run Decision Engine -> Generate [{decision_target}] Strategy", use_container_width=True):
+                with strl.spinner(f"🦅 Gemini Quant Strategist processing multi-factor model..."):
+                    time.sleep(1)
+                    current_live_price_str = "Price Unavailable"
                     if os.path.exists(LIVE_SNAPSHOT_PATH):
                         try:
                             with open(LIVE_SNAPSHOT_PATH, "r", encoding="utf-8") as rf:
@@ -522,11 +602,10 @@ with tab_decision:
                                     current_live_price_str = f"${snap[decision_target]['curr']:.2f}"
                         except: pass
                     
-                    # 基准时空价格注入包
-                    time_基准_prompt = (
-                        f"资产标的: {decision_target}\n"
-                        f"当前实盘最新成交真基准价: {current_live_price_str}\n"
-                        f"请以此价格为最终真基准。若历史 FMP 研报库中含有其他陈旧价格，请自动将其视为历史记录。"
+                    time_prompt = (
+                        f"Asset Ticker: {decision_target}\n"
+                        f"Latest Live Market Execution Price: {current_live_price_str}\n"
+                        f"Treat this as the exact current benchmark price for analysis."
                     )
 
                     import re
@@ -559,37 +638,29 @@ with tab_decision:
                                 processed_geo_news.append(n_copy)
                             else: processed_geo_news.append(n)
 
-                    # 🚀🔥【决策网关终极对齐】：将今日同步刷新后的三大股指实时快照直接并网注入 macro_data
                     merged_macro_context = globals()["macro_data"].copy()
                     for idx_k, idx_v in index_snapshot.items():
-                        merged_macro_context[f"大盘指数_{idx_k}"] = f"{idx_v['val']} ({idx_v['pct']})"
+                        merged_macro_context[f"Index_{idx_k}"] = f"{idx_v['val']} ({idx_v['pct']})"
 
-                    # 🚀 将合并后的最新宏观因子透传到决策引擎
                     raw_rep = decision_engine.generate_m7_weekly_decision(
                         ticker=decision_target, 
                         period_choice=period_choice, 
-                        macro_data=merged_macro_context,              # 👈 注入完美对齐的全新大盘快照因子
+                        macro_data=merged_macro_context,               
                         audit_text=final_content,                     
                         stock_news=processed_stock_news, 
                         geo_news=processed_geo_news,
-                        time_prompt=time_基准_prompt,
+                        time_prompt=time_prompt,
                         urgent_intel=urgent_intelligence.strip()       
                     )
                     strl.session_state[f"decision_{decision_target}_{period_choice}"] = raw_rep
                     
-            # =====================================================================
-            # 🦅 M7 终极渲染层：铁血多模态解包提纯算子（彻底粉碎原始 JSON 源码反弹）
-            # =====================================================================
             dec_res = strl.session_state.get(f"decision_{decision_target}_{period_choice}", "")
             if dec_res:
-                strl.markdown('<div style="background-color:#111625; padding:12px; border-radius:8px; border-left: 5px solid #00FF00; margin-bottom: 15px;"><h4 style="color:#00FF00; margin-top:0px; margin-bottom:0px; font-family: monospace;">🦅 M7 量化主权研报体系 · 决策流完美合龙</h4></div>', unsafe_allow_html=True)
+                strl.markdown('<div style="background-color:#111625; padding:12px; border-radius:8px; border-left: 5px solid #00FF00; margin-bottom: 15px;"><h4 style="color:#00FF00; margin-top:0px; margin-bottom:0px; font-family: monospace;">🦅 M7 Quant Executive Decision Strategy</h4></div>', unsafe_allow_html=True)
                 
                 clean_text = ""
-                
-                # 1️⃣ 梯队：如果是原生的 LangChain AIMessage 对象，提取 content 属性
                 if hasattr(dec_res, "content"):
                     clean_text = str(dec_res.content)
-                # 2️⃣ 梯队：如果是标准 list，提取内部字典或对象的 text 核心
                 elif isinstance(dec_res, list) and len(dec_res) > 0:
                     node = dec_res[0]
                     if hasattr(node, "text"):
@@ -598,15 +669,12 @@ with tab_decision:
                         clean_text = str(node.get("text", node.get("content", str(node))))
                     else:
                         clean_text = str(node)
-                # 3️⃣ 梯队：如果是 dict 字典，打捞对应的主权 Key
                 elif isinstance(dec_res, dict):
                     clean_text = str(dec_res.get("text", dec_res.get("content", str(dec_res))))
-                # 4️⃣ 梯队：如果是由于系统缓存导致被强行强转成了原生字符串格式的错乱表达式，执行硬核正则/字符串切片打捞
                 elif isinstance(dec_res, str):
                     s_stripped = dec_res.strip()
                     if s_stripped.startswith("[") or s_stripped.startswith("{"):
                         try:
-                            # 尝试安全反序列化
                             import ast
                             parsed = ast.literal_eval(s_stripped)
                             if isinstance(parsed, list) and len(parsed) > 0:
@@ -614,7 +682,6 @@ with tab_decision:
                             if isinstance(parsed, dict):
                                 clean_text = parsed.get("text", parsed.get("content", ""))
                         except:
-                            # 容灾模糊截取匹配法
                             if "'text':" in s_stripped:
                                 try:
                                     start_idx = s_stripped.find("'text': '") + 9
@@ -624,16 +691,10 @@ with tab_decision:
                                         if start_idx < end_idx:
                                             clean_text = s_stripped[start_idx:end_idx]
                                 except: pass
-                    
-                    # 如果未命中任何结构化反序列化，说明本身就是纯文本
                     if not clean_text:
                         clean_text = s_stripped
-
                 else:
                     clean_text = str(dec_res)
 
-                # 5️⃣ 终极去噪：修复由于原生反序列化可能夹带出来的字面量换行符和前端网页标签
                 clean_decision_text = clean_text.replace("\\n", "\n").replace("<br>", " ").replace("<br />", " ")
-                
-                # 交付最干净、最漂亮的 Markdown 文本长卷到前端大屏
                 strl.markdown(clean_decision_text)
