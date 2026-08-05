@@ -600,15 +600,35 @@ with tab_market:
                             if real_market_cap > 0:
                                 formatted_cap = f"${real_market_cap / 1e12:.2f} Trillion"
                                 audit_result = audit_result.replace("Market Cap: 0", f"Calibrated Market Cap: {formatted_cap}")
-                        except: pass
+                        except: 
+                            pass
 
                         report_container.markdown(audit_result.replace("<br>", " "))
-                        meta_bundle = {"fetched_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "packet": {}, "audit_report": audit_result}
+                        
+                        # 🎯【核心修复】：读取现有 JSON，保留原始 packet 财报数据，追加 audit_report 字段
+                        meta_bundle = {}
+                        if os.path.exists(local_json_path):
+                            try:
+                                with open(local_json_path, "r", encoding="utf-8") as rf:
+                                    meta_bundle = json.load(rf)
+                            except: 
+                                meta_bundle = {}
+                        
+                        # 安全合并数据
+                        meta_bundle["fetched_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        meta_bundle["audit_report"] = audit_result  # 追加 AI 审计报告
+                        if "packet" not in meta_bundle:
+                            meta_bundle["packet"] = {}
+
+                        # 持久化写入磁盘
                         with open(local_json_path, "w", encoding="utf-8") as wf: 
                             json.dump(meta_bundle, wf, ensure_ascii=False, indent=2)
+                            
                         strl.success(f"🎉 [{audit_target}] Audit Report generated and saved successfully!")
+                        time.sleep(1) # 停留 1 秒展示成功提示，再刷新
                         strl.rerun()  
-                except Exception as e: strl.error(f"Execution Error: {e}")
+                except Exception as e: 
+                    strl.error(f"Execution Error: {e}")
 
 # =====================================================================
 # 🦅 Strategic Decision Engine Tab
@@ -623,15 +643,26 @@ with tab_decision:
         local_json_file = os.path.join(DATA_CACHE_DIR, f"fmp_cache_{decision_target}.json")
         base_audit_ready = False
         final_content = ""
+        fundamental_assessment_text = ""
         
+        # 1. 安全解包 JSON，提取全量 audit_report 及单独的 Fundamental Health Assessment
         if os.path.exists(local_json_file):
             try:
                 with open(local_json_file, "r", encoding="utf-8") as f:
                     disk_cache = json.load(f)
-                    if "audit_report" in disk_cache and disk_cache["audit_report"].strip():
-                        final_content = disk_cache["audit_report"]
+                    report_node = disk_cache.get("audit_report", "")
+                    if isinstance(report_node, str) and report_node.strip():
+                        final_content = report_node.strip()
                         base_audit_ready = True
-            except: pass
+                        
+                        # 🎯 从报告中切分出 "III. Fundamental Health Assessment" 部分用于单独展示
+                        if "Fundamental Health Assessment" in final_content:
+                            parts = final_content.split("Fundamental Health Assessment")
+                            if len(parts) > 1:
+                                assessment_part = parts[1].split("###")[0].split("---")[0].strip()
+                                fundamental_assessment_text = assessment_part
+            except Exception as read_err:
+                print(f"⚠️ [M7-DECISION] Error parsing audit cache: {read_err}")
 
         if not base_audit_ready:
             strl.error(
@@ -644,6 +675,13 @@ with tab_decision:
         else:
             strl.success(f"🟢 [M7-FACTOR-READY] Fundamental audit linked! Target [{decision_target}] ready for strategic analysis.")
             
+            # 🎯【核心新增】：显式渲染从 Tab 2 缓存中读取出来的 Fundamental Health Assessment 证据卡片
+            if fundamental_assessment_text:
+                with strl.expander(f"📑 【Linked Fundamental Anchor】 Tab 2 Assessment Preview for [{decision_target}]", expanded=True):
+                    strl.markdown(f"**III. Fundamental Health Assessment (Read from Local Cache)**")
+                    strl.markdown(f"<div style='background-color: #161b22; padding: 10px 14px; border-left: 4px solid #388bfd; border-radius: 4px; font-size: 13px; color: #c9d1d9;'>{fundamental_assessment_text}</div>", unsafe_allow_html=True)
+                    strl.caption("✅ The multi-factor decision engine will pass this structural baseline directly to Gemini as Data Source 4.")
+
             strl.markdown("#### 📢 Urgent Intelligence Stream")
             urgent_intelligence = strl.text_area(
                 label=f"💬 Append custom catalysts / emergency market updates for [{decision_target}] (Optional):",
@@ -698,16 +736,12 @@ with tab_decision:
                                 if "url" in n_copy: del n_copy["url"]
                                 processed_geo_news.append(n_copy)
                             else: processed_geo_news.append(n)
-                    # =====================================================================
-                    # 🦅 格式化全量宏观因子（包含美联储利率、非农、失业率、CPI、PPI、美债、原油、美元指数与三大指数）
-                    # =====================================================================
-                    merged_macro_context = {}
 
-                    # 1. 注入实时三大指数
+                    # 🦅 格式化全量宏观与美联储上下文
+                    merged_macro_context = {}
                     for idx_k, idx_v in index_snapshot.items():
                         merged_macro_context[f"Index_{idx_k}"] = f"{idx_v['val']} ({idx_v['pct']})"
 
-                    # 2. 注入 FRED 美联储与核心宏观经济指标（带发布日期）
                     if macro_data:
                         for m_key, m_node in macro_data.items():
                             if isinstance(m_node, dict):
@@ -718,9 +752,6 @@ with tab_decision:
                                 merged_macro_context[m_key] = f"Current: {val_str} (Previous: {prev_str}){date_tag}"
                             else:
                                 merged_macro_context[m_key] = str(m_node)
-
-                    print(f"📡 [M7-DECISION-DEBUG] 成功打包全量宏观与美联储上下文传给 Gemini:\n{json.dumps(merged_macro_context, indent=2, ensure_ascii=False)}")
-                   
 
                     raw_rep = decision_engine.generate_m7_weekly_decision(
                         ticker=decision_target, 
@@ -752,62 +783,31 @@ with tab_decision:
                 elif isinstance(dec_res, dict):
                     clean_text = str(dec_res.get("text", dec_res.get("content", str(dec_res))))
                 elif isinstance(dec_res, str):
-                    s_stripped = dec_res.strip()
-                    if s_stripped.startswith("[") or s_stripped.startswith("{"):
-                        try:
-                            import ast
-                            parsed = ast.literal_eval(s_stripped)
-                            if isinstance(parsed, list) and len(parsed) > 0:
-                                parsed = parsed[0]
-                            if isinstance(parsed, dict):
-                                clean_text = parsed.get("text", parsed.get("content", ""))
-                        except:
-                            if "'text':" in s_stripped:
-                                try:
-                                    start_idx = s_stripped.find("'text': '") + 9
-                                    if start_idx != 8:
-                                        end_idx = s_stripped.find("', 'type'")
-                                        if end_idx == -1: end_idx = s_stripped.find("', 'links'")
-                                        if start_idx < end_idx:
-                                            clean_text = s_stripped[start_idx:end_idx]
-                                except: pass
-                    if not clean_text:
-                        clean_text = s_stripped
+                    clean_text = dec_res.strip()
                 else:
                     clean_text = str(dec_res)
 
-                # =====================================================================
-                # 🎨 决策报告看涨/看跌关键词自动高亮与点亮渲染逻辑 (彻底修复源码泄露 BUG)
-                # =====================================================================
                 clean_decision_text = clean_text.replace("\\n", "\n").replace("<br>", " ").replace("<br />", " ")
 
-                # 1. 物理安全高亮替换函数：使用 HTML 标签，并防止泄露
-                def highlight_bull_bear_keywords(text: str) -> str:
+                def safe_highlight_bull_bear(text: str) -> str:
                     import re
-                    
-                    # 先剔除大模型可能包裹的伪 ASCII 代码块标记，使其强行退回标准 Markdown 格式
                     text = re.sub(r'```[a-zA-Z]*\n', '', text)
                     text = text.replace('```', '')
 
-                    # 看涨 / 看跌正则匹配
-                    bull_pattern = r'\b(Bullish|BULLISH|Bull|BULL|Long|LONG|Overweight|OVERWEIGHT)\b'
-                    bear_pattern = r'\b(Bearish|BEARISH|Bear|BEAR|Short|SHORT|Underweight|UNDERWEIGHT)\b'
-                    
-                    # 替换为内联高亮 CSS 标签
-                    text = re.sub(
-                        bull_pattern, 
-                        r'<span style="color: #00FF00; font-weight: bold; background-color: rgba(0, 255, 0, 0.12); padding: 1px 5px; border-radius: 4px;">\1</span>', 
-                        text
-                    )
-                    text = re.sub(
-                        bear_pattern, 
-                        r'<span style="color: #FF4444; font-weight: bold; background-color: rgba(255, 68, 68, 0.12); padding: 1px 5px; border-radius: 4px;">\1</span>', 
-                        text
-                    )
+                    bull_words = ["Bullish", "BULLISH", "Bull", "BULL", "Long", "LONG", "Overweight", "OVERWEIGHT"]
+                    bear_words = ["Bearish", "BEARISH", "Bear", "BEAR", "Short", "SHORT", "Underweight", "UNDERWEIGHT"]
+
+                    for bw in bull_words:
+                        pattern = r'\b' + re.escape(bw) + r'\b'
+                        replacement = f'<span style="color: #00FF00; font-weight: bold; background-color: rgba(0, 255, 0, 0.12); padding: 1px 4px; border-radius: 3px;">{bw}</span>'
+                        text = re.sub(pattern, replacement, text)
+
+                    for bw in bear_words:
+                        pattern = r'\b' + re.escape(bw) + r'\b'
+                        replacement = f'<span style="color: #FF4444; font-weight: bold; background-color: rgba(255, 68, 68, 0.12); padding: 1px 4px; border-radius: 3px;">{bw}</span>'
+                        text = re.sub(pattern, replacement, text)
+
                     return text
 
-                # 2. 执行安全高亮
-                highlighted_decision_text = highlight_bull_bear_keywords(clean_decision_text)
-
-                # 3. 渲染最终 HTML/Markdown 结果
+                highlighted_decision_text = safe_highlight_bull_bear(clean_decision_text)
                 strl.markdown(highlighted_decision_text, unsafe_allow_html=True)

@@ -1,4 +1,4 @@
-# decision_engine.py (M7-ALPHA Central Quant Strategic Decision Engine - Multi-Factor Synthesis & Dynamic Risk Calibration)
+# decision_engine.py (M7-ALPHA Central Quant Strategic Decision Engine - Multi-Factor Synthesis & Deep Catalyst Extraction)
 import os
 import json
 import random
@@ -36,7 +36,7 @@ if not active_google_keys:
 def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, stock_news, geo_news, time_prompt, urgent_intel=""):
     """
     🚀 M7 Strategic Decision Engine: Integrates live prices, FRED macro factors, 
-    technical indicators, fundamental audits, and urgent intelligence catalysts.
+    technical indicators, fundamental audits, deep news catalysts, and urgent intelligence.
     """
     print(f"🧠 [M7-DECISION-ENGINE] Dynamically computing technical indicators for [{ticker}] from local Parquet cache...")
     
@@ -118,11 +118,19 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
     gemini_key = random.choice(active_google_keys)
     llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0.1, google_api_key=gemini_key)
 
-    stock_news_summary = "\n".join([f"- [Ticker Catalyst] {n.get('title')}: {n.get('summary')[:250]}" for n in stock_news])
-    geo_news_summary = "\n".join([f"- [Geopolitical Radar] {n.get('title')}: {n.get('summary')[:250]}" for n in geo_news])
+    # 📰【放宽摘要长度】提升新闻因子的信息密度，避免被过度截断
+    stock_news_summary = "\n".join([
+        f"- [News Catalyst #{i+1}] Title: {n.get('title', 'N/A')} | Content: {n.get('summary', n.get('description', ''))[:500]}" 
+        for i, n in enumerate(stock_news)
+    ]) if stock_news else "No specific stock news retrieved."
+
+    geo_news_summary = "\n".join([
+        f"- [Geopolitical Intel #{i+1}] Title: {n.get('title', 'N/A')} | Content: {n.get('summary', '')[:400]}" 
+        for i, n in enumerate(geo_news)
+    ]) if geo_news else "No specific geopolitical news retrieved."
 
     # =====================================================================
-    # 🎯 全量定型 System Prompt 模板
+    # 🎯 全量定型 System Prompt 模板 (强化新闻因子权重与结构化要求)
     # =====================================================================
     prompt_context = f"""
     You are the Chief Quantitative Strategist and Fundamental Analyst at M7-ALPHA Capital. Generate an executive-grade trading decision report for ticker [{ticker}] for the upcoming trading week.
@@ -134,24 +142,29 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
     2. 🏛️【DATA SOURCE 2: FULL-SPECTRUM FRED MACRO & FED LIQUIDITY FACTORS (MANDATORY)】:
        You MUST explicitly integrate Fed Funds Rate, Unemployment Rate, Non-Farm Payrolls, Core CPI YoY, PPI (YoY/MoM), 10Y Treasury Yield, and US Dollar Index into your macro analysis. Explain how interest rates, labor market tightness, and inflation sticky points impact the discount rate and valuation baseline for [{ticker}].
 
-    3. ⚖️【REWARD-TO-RISK RATIO (盈亏比) MATHEMATICAL HARD CONSTRAINT】:
-       Use EXCLUSIVELY the unambiguous term "Reward-to-Risk Ratio" (DO NOT write "Risk-Reward Ratio"). 
-       You MUST calculate it rigorously using the exact mathematical formula:
-       Reward-to-Risk Ratio = (Primary Take-Profit Target - Tactical Entry Price) / (Tactical Entry Price - Strict Stop-Loss Level)
-       * Example: If Entry = $370.00, Take-Profit = $392.00, Stop-Loss = $345.50:
-         Reward = $392.00 - $370.00 = $22.00
-         Risk = $370.00 - $345.50 = $24.50
-         Reward-to-Risk Ratio = 22.00 / 24.50 = 0.90:1 (or 0.9:1).
-       * NEVER fabricate or hallucinate a fixed "2.4:1" ratio if the price math does not support it! Ensure the written ratio 100% matches your proposed execution price parameters.
+    3. 📰【DATA SOURCE 6: HIGH-WEIGHT NEWS CATALYST EXTRACTION (MANDATORY)】:
+       DO NOT summarize all news into a single generic sentence! In Section 3, you MUST explicitly extract 2 to 4 SPECIFIC high-impact catalysts from Data Source 6 (e.g., Starlink expansions, FAA approvals, earnings commentary, contract wins), detail their bullish/bearish market implications, and explain how they directly influence your trading stance and execution price levels for [{ticker}].
 
-    4. 📊【SECTION 1 MULTI-FACTOR EVIDENCE MATRIX STRICT TEMPLATE】:
+    4. 🎯【DIRECTIONAL & TRADE PARAMETER STRICT CONSISTENCY】:
+       Your trade execution parameters MUST strictly align with the Executive Direction:
+       - If Executive Direction is BULLISH or OVERWEIGHT: Tactical Entry Zone must be a buy level, Take-Profit must be ABOVE Entry, Stop-Loss must be BELOW Entry.
+       - If Executive Direction is BEARISH or UNDERWEIGHT: DO NOT provide a long buy setup! State clearly that this is a risk-mitigation / position reduction stance, or provide short/hedging parameters where Take-Profit is BELOW Entry and Stop-Loss is ABOVE Entry.
+
+    5. ⚖️【REWARD-TO-RISK RATIO & PURE TEXT CALCULATION】:
+       Use EXCLUSIVELY the term "Reward-to-Risk Ratio" (DO NOT write "Risk-Reward Ratio"). 
+       Calculate it strictly as: Reward / Risk = (Take Profit - Entry) / (Entry - Stop Loss) [for Long] or (Entry - Take Profit) / (Stop Loss - Entry) [for Short].
+       * ZERO LATEX RULE: Output the calculation purely in plain text, e.g.: 
+         `Reward-to-Risk Ratio: 2.0:1 (Reward: $18.00 / Risk: $9.00)`
+       * ABSOLUTELY PROHIBITED: Do NOT write LaTeX code like `\\text{{...}}`, `\\frac{{...}}`, `\\$`, or `$$`. Write plain text numbers and standard dollar signs!
+
+    6. 📊【SECTION 1 MULTI-FACTOR EVIDENCE MATRIX STRICT TEMPLATE】:
        Section 1 MUST contain a clean Markdown Table with EXACTLY 3 columns (`Factor Module`, `Data Input & Values`, `Impact on Valuation & Trend Signal`). DO NOT output pseudo-code boxes, ASCII block diagrams, or text lists for the matrix.
 
-    5. 🚫 【NO LATEX / HTML CODE EMBEDDING】:
+    7. 🚫 【NO LATEX / HTML CODE EMBEDDING】:
        DO NOT wrap prose or numbers in LaTeX characters (like $...$ or $$...$$). Write plain text and dollar figures directly (e.g., write "$18.22B" or "10%").
        DO NOT insert HTML tags (like `<span style=...>` or `<div>`) inside the report prose or table cells. Output clean standard Markdown text.
 
-    6. 🚫 【NO HALLUCINATIONS】:
+    8. 🚫 【NO HALLUCINATIONS】:
        If any historical data point is unavailable, report 'N/A' directly. Never fabricate historical financials.
 
     ------------------------------------------------------------------
@@ -179,9 +192,10 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
     ➡️ 【URGENT FACTOR】: {urgent_intel if urgent_intel else "Market conditions calm. No custom urgent intelligence entered by executive leadership. Proceeding with standard multi-factor synthesis."}
     
     【DATA SOURCE 6: M7 HIGH-SENSITIVITY NEWS RADAR】
-    * Ticker News Feed:
+    * Ticker-Specific Catalysts (Up to 7 items):
     {stock_news_summary}
-    * Geopolitical Intelligence:
+    
+    * Geopolitical & Macro Risk Feed:
     {geo_news_summary}
     ------------------------------------------------------------------
 
@@ -197,8 +211,8 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
     | :--- | :--- | :--- |
     | **Fed & Macro Regime** | [Summarize Fed Rate, CPI, PPI, NFP, Unemployment, Yields] | [Analysis signal] |
     | **Market Beta Sentiment** | [Summarize S&P 500, NASDAQ, Dow Jones] | [Analysis signal] |
-    | **Fundamental Anchor** | [Summarize Earnings, Revenue, Margins] | [Analysis signal] |
-    | **Real-Time Catalysts** | [Summarize Catalysts & Urgent Intel] | [Analysis signal] |
+    | **Fundamental Anchor** | [Summarize Earnings, Revenue, Margins, and Audit Assessment] | [Analysis signal] |
+    | **Real-Time Catalysts & News** | [Summarize Key News Catalysts & Urgent Intel] | [Analysis signal] |
 
     ### 2️⃣ 【Technical Indicator State & Key Target Price Levels】
     - **Technical Structure Overview**: [Moving Average alignment and Bollinger Band status]
@@ -207,19 +221,21 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
 
     ### 3️⃣ 【Weekly Outlook Rating & Multi-Factor Convergence Logic】
     - **Macro & Fed Liquidity Alignment**: [Deep analysis on Fed Rate, Inflation, Labor Data]
-    - **Fundamental & Earnings Confluence**: [Synthesis of fundamental report]
-    - **News & Geopolitical Catalyst Impact**: [Impact of stock news and geopolitical risks]
+    - **Fundamental & Earnings Confluence**: [Synthesis of fundamental report & health assessment]
+    - **News & Geopolitical Catalyst Impact**: 
+      * **Key High-Impact News Drivers**: [Explicitly cite 2 to 4 specific news events from Data Source 6 and analyze their direct price/sentiment impact on {ticker}]
+      * **Geopolitical & Sentiment Alignment**: [Synthesis of broader geopolitical headwinds or tailwinds]
 
     ### 4️⃣ 【Actionable Trading Strategy & Risk Management Plan】
-    - **Recommended Asset Allocation**: [e.g., Overweight (5.0% to 7.0% portfolio allocation)]
+    - **Recommended Asset Allocation**: [e.g., Overweight (5.0% to 7.0%) or Underweight (1.0% to 2.0% defensive allocation)]
     - **Trade Execution Parameters**:
       * **Tactical Entry Zone**: [Exact Entry Price]
       * **Primary Take-Profit Target**: [Exact Target Price]
       * **Strict Stop-Loss Level**: [Exact Stop-Loss Price]
-    - **Reward-to-Risk Ratio**: [Calculated precisely as (Target - Entry) / (Entry - Stop Loss), e.g., 2.1:1 or 0.9:1]
+    - **Reward-to-Risk Ratio**: [e.g., 2.0:1 (Reward: $18.00 / Risk: $9.00)]
     - **Dynamic Contingency Triggers**:
       * **Upside Acceleration Trigger**: [e.g., A daily close above $X opens secondary momentum toward $Y]
-      * **Downside Invalidation Trigger**: [e.g., A breach below $Z invalidates the bullish stance]
+      * **Downside Invalidation Trigger**: [e.g., A breach below $Z invalidates the stance]
     """
 
     try:
@@ -238,11 +254,25 @@ def generate_m7_weekly_decision(ticker, period_choice, macro_data, audit_text, s
         else:
             clean_res = str(raw_content)
 
-        # 物理剥离多余格式符，斩断 LaTeX 斜体与伪代码块 BUG
+        # =====================================================================
+        # 🧹【多重安全正则清理】彻底撕毁 LaTeX 语法与转义字符泄漏 BUG
+        # =====================================================================
+        # 1. 移除伪代码块标识
         clean_res = re.sub(r'```[a-zA-Z]*\n', '', clean_res)
         clean_res = clean_res.replace('```', '')
+        
+        # 2. 剥离 \text{...} 和 \frac{...}{...} 算式裸露
+        clean_res = re.sub(r'\\text\{([^}]+)\}', r'\1', clean_res)
+        clean_res = re.sub(r'\\frac\{([^}]+)\}\{([^}]+)\}', r'\1 / \2', clean_res)
+        
+        # 3. 消除多余的反斜杠（如 \140.00 -> 140.00）
+        clean_res = re.sub(r'\\([0-9]+)', r'\1', clean_res)
+        
+        # 4. 剥离包裹在句中多余的单美元符号（$200B -> 200B）
         clean_res = re.sub(r'\$([^\$\n]{2,})\$', r'\1', clean_res)
         clean_res = re.sub(r'\*(Note:[^*]+)\*', r'\1', clean_res)
+        
+        # 5. 最后统一进行美元符号转义，防止前端 Streamlit 将 $ 误认为 LaTeX 开始标识符
         clean_res = clean_res.replace('$', '\\$')
         
         return clean_res
