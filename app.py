@@ -375,48 +375,47 @@ with strl.sidebar:
 # =====================================================================
 # 📊 Core Market Indices Calculation
 # =====================================================================
+# =====================================================================
+# 📊 Core Market Indices Calculation (纯实时不落盘通道)
+# =====================================================================
 index_snapshot = {
     "GSPC": {"val": "0.00", "arrow": "—", "color": "#58a6ff", "pct": "0.00%"}, 
     "DJI": {"val": "0.00", "arrow": "—", "color": "#58a6ff", "pct": "0.00%"}, 
     "IXIC": {"val": "0.00", "arrow": "—", "color": "#58a6ff", "pct": "0.00%"}
 }
 index_map = {"GSPC": "^GSPC", "DJI": "^DJI", "IXIC": "^IXIC"}
-today_date_str = datetime.now(pytz.timezone('America/New_York')).strftime("%Y-%m-%d")
 
 for idx_key, idx_ticker in index_map.items():
-    idx_parquet = os.path.join(DATA_CACHE_DIR, f"{idx_ticker.replace('^', '').lower()}_10y.parquet")
-    df_idx = None
-    
-    if os.path.exists(idx_parquet):
-        file_mod_date = datetime.fromtimestamp(os.path.getmtime(idx_parquet)).strftime("%Y-%m-%d")
-        if file_mod_date == today_date_str:
-            try: 
-                df_idx = pd.read_parquet(idx_parquet)
-            except: 
-                pass
+    try:
+        # 直接在线请求实时 fast_info，不读也不写任何 parquet 缓存文件
+        tk = yf.Ticker(idx_ticker)
+        fast_info = getattr(tk, "fast_info", None)
+        
+        current_close = 0.0
+        prev_close = 0.0
+        
+        if fast_info:
+            current_close = fast_info.last_price
+            prev_close = fast_info.previous_close
+            
+        # 如果 fast_info 没拿到，降级拉取最新 1 天的 1 分钟线做实时兜底
+        if not current_close or not prev_close:
+            df_mini = tk.history(period="1d", interval="1m")
+            if not df_mini.empty:
+                current_close = float(df_mini["Close"].iloc[-1])
+                prev_close = float(df_mini["Open"].iloc[0])
 
-    if df_idx is None or df_idx.empty:
-        try:
-            df_idx = yf.download(idx_ticker, period="5d", interval="1d", auto_adjust=True)
-            if not df_idx.empty:
-                df_idx = df_idx.dropna(how='all')
-                if isinstance(df_idx.columns, pd.MultiIndex):
-                    df_idx.columns = df_idx.columns.get_level_values(0)
-                df_idx.to_parquet(idx_parquet, engine="pyarrow")
-        except Exception as net_idx_err:
-            print(f"❌ Index network fetch failed [{idx_ticker}]: {net_idx_err}")
-
-    if df_idx is not None and not df_idx.empty:
-        try:
-            clean_series = df_idx["Close"].dropna().values.flatten()
-            if len(clean_series) >= 2:
-                current_close, prev_close = float(clean_series[-1]), float(clean_series[-2])
-                change_pct = ((current_close - prev_close) / prev_close) * 100
-                arrow, color_code = ("▲", "#00FF00") if change_pct > 0 else (("▼", "#FF4444") if change_pct < 0 else ("—", "#58a6ff"))
-                index_snapshot[idx_key] = {"val": f"{current_close:,.2f}", "arrow": arrow, "color": color_code, "pct": f"{change_pct:+.2f}%"}
-        except Exception as calc_err: 
-            print(f"⚠️ Index calculation error [{idx_ticker}]: {calc_err}")
-
+        if current_close and prev_close:
+            change_pct = ((current_close - prev_close) / prev_close) * 100
+            arrow, color_code = ("▲", "#00FF00") if change_pct > 0 else (("▼", "#FF4444") if change_pct < 0 else ("—", "#58a6ff"))
+            index_snapshot[idx_key] = {
+                "val": f"{current_close:,.2f}", 
+                "arrow": arrow, 
+                "color": color_code, 
+                "pct": f"{change_pct:+.2f}%"
+            }
+    except Exception as net_idx_err:
+        print(f"❌ Realtime Index fetch failed [{idx_ticker}]: {net_idx_err}")
 # =====================================================================
 # 📊 Multi-Row Responsive Macro Rendering with Release Dates
 # =====================================================================
